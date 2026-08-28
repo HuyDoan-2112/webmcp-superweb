@@ -107,3 +107,20 @@ descriptions against real transcripts. The cut list, in order, is in
 [docs/PLAN.md](docs/PLAN.md) §9 - cut from the top, do not improvise.
 
 Do not build real authentication. The demo session is identity, not security.
+
+## Agent skills
+
+### Issue tracker
+
+GitHub Issues via the `gh` CLI. The remote does not exist yet and must be created
+before any skill tries to write an issue. See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+The five canonical roles, unchanged: `needs-triage`, `needs-info`,
+`ready-for-agent`, `ready-for-human`, `wontfix`. See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Single-context: `CONTEXT.md` at the root, decisions in `docs/adr/`.
+See `docs/agents/domain.md`.
