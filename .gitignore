@@ -1,0 +1,36 @@
+# --- deps / build -----------------------------------------------------------
+node_modules/
+dist/
+.vite/
+*.tsbuildinfo
+
+# --- env / local ------------------------------------------------------------
+.env
+.env.*
+!.env.example
+.vercel/
+
+# --- python (etl) -----------------------------------------------------------
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# --- raw source data --------------------------------------------------------
+# Contoso V2 downloads are large and regenerable. Gold parquet IS committed
+# (see PLAN §3 rule 3 — keep data/gold under ~50 MB or move to static hosting).
+etl/source/
+data/bronze/
+data/silver/
+
+# --- agent tooling ----------------------------------------------------------
+# Personal setup, not repo content. CLAUDE.md and CONTEXT.md are NOT here:
+# they are the shared contract and must travel with the repo.
+.claude/
+.agents/
+skills-lock.json
+
+# --- os / editor ------------------------------------------------------------
+.DS_Store
+Thumbs.db
+*.log
