@@ -1,5 +1,5 @@
 {
-  "runId": "run_20260829T192312Z",
+  "runId": "run_20260829T202052Z",
   "period": "2023-11",
   "checks": [
     {
@@ -13,7 +13,7 @@
       "expectedRows": 31084,
       "rejectedRows": 7831,
       "detail": "7831 of 31084 order lines found no currencyexchange row for (FromCurrency, ToCurrency='USD', order date).",
-      "plainLanguage": "The the period figure is usable but short by about 25 per cent. 7,831 of 31,084 order lines were dropped for a missing exchange rate."
+      "plainLanguage": "The figure for this period is usable but short by about 25 per cent. 7,831 of 31,084 order lines were dropped for a missing exchange rate."
     },
     {
       "name": "fx_rate_not_null",
@@ -26,7 +26,7 @@
       "expectedRows": 874,
       "rejectedRows": 0,
       "detail": "0 of 874 order lines found no currencyexchange row for (FromCurrency, ToCurrency='USD', order date).",
-      "plainLanguage": "Every order line behind Australia was counted."
+      "plainLanguage": "Every order line behind Australia figure was counted."
     },
     {
       "name": "fx_rate_not_null",
@@ -39,7 +39,7 @@
       "expectedRows": 1511,
       "rejectedRows": 0,
       "detail": "0 of 1511 order lines found no currencyexchange row for (FromCurrency, ToCurrency='USD', order date).",
-      "plainLanguage": "Every order line behind Canada was counted."
+      "plainLanguage": "Every order line behind Canada figure was counted."
     },
     {
       "name": "fx_rate_not_null",
@@ -117,7 +117,7 @@
       "expectedRows": 1082,
       "rejectedRows": 0,
       "detail": "0 of 1082 order lines found no currencyexchange row for (FromCurrency, ToCurrency='USD', order date).",
-      "plainLanguage": "Every order line behind United Kingdom was counted."
+      "plainLanguage": "Every order line behind United Kingdom figure was counted."
     },
     {
       "name": "fx_rate_not_null",
@@ -130,7 +130,7 @@
       "expectedRows": 5743,
       "rejectedRows": 0,
       "detail": "0 of 5743 order lines found no currencyexchange row for (FromCurrency, ToCurrency='USD', order date).",
-      "plainLanguage": "Every order line behind United States was counted."
+      "plainLanguage": "Every order line behind United States figure was counted."
     },
     {
       "name": "fx_rate_not_null",

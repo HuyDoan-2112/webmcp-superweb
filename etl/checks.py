@@ -39,13 +39,13 @@ def _plain_language(scope_label: str, rejected: int, expected: int, verdict: str
     share = round(100 * rejected / expected)
     if verdict == "blocked":
         return (
-            f"The {scope_label} figure is not trustworthy. {rejected:,} of the "
+            f"The {scope_label} is not trustworthy. {rejected:,} of the "
             f"{expected:,} order lines behind it were never counted, because the "
             f"exchange rate needed to convert them was missing for those days. "
             f"The number is not low, it is incomplete."
         )
     return (
-        f"The {scope_label} figure is usable but short by about {share} per cent. "
+        f"The {scope_label} is usable but short by about {share} per cent. "
         f"{rejected:,} of {expected:,} order lines were dropped for a missing "
         f"exchange rate."
     )
@@ -67,7 +67,9 @@ def run_checks(con: Any, period: str) -> list[dict[str, Any]]:
         [period, period],
     ).fetchone()
     expected, rejected = int(row[0]), int(row[1])
-    checks.append(_check("fx_rate_not_null", period, None, None, "the period", rejected, expected))
+    checks.append(
+        _check("fx_rate_not_null", period, None, None, "figure for this period", rejected, expected)
+    )
 
     # Per country, and per channel. These are the two axes the report sections
     # are cut along, so these are the verdicts draft_report actually consults.
@@ -101,7 +103,7 @@ def run_checks(con: Any, period: str) -> list[dict[str, Any]]:
                     period,
                     dimension,
                     key,
-                    key,
+                    f"{key} figure",
                     int(rejected),
                     int(expected),
                 )

@@ -1,5 +1,27 @@
 [
   {
+    "id": "run_20260829T202052Z",
+    "startedUtc": "2026-08-29T20:20:52+00:00",
+    "finishedUtc": "2026-08-29T20:20:54+00:00",
+    "status": "success",
+    "rowCounts": {
+      "bronze.orders": 875901,
+      "bronze.orderrows": 2098633,
+      "bronze.currencyexchange": 91295,
+      "silver.order_lines_raw": 2098633,
+      "silver.fct_order_lines": 2090802,
+      "silver.rejected_order_lines": 7831,
+      "gold.fact_sales_daily": 1282911,
+      "gold.fact_orders_daily": 161213,
+      "gold.dim_product": 2517,
+      "gold.dim_store": 74,
+      "gold.dim_date": 3653
+    },
+    "checkNames": [
+      "fx_rate_not_null"
+    ]
+  },
+  {
     "id": "run_20260829T192312Z",
     "startedUtc": "2026-08-29T19:23:12+00:00",
     "finishedUtc": "2026-08-29T19:23:17+00:00",
