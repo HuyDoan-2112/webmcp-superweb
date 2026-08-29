@@ -15,7 +15,7 @@ python -m venv .venv
 ```
 
 ```bash
-source .venv/Scripts/activate
+source .venv/bin/activate       # .venv/Scripts/activate on Windows
 ```
 
 ```bash
@@ -33,6 +33,16 @@ python etl/run.py
 | `sql/01_bronze.sql` | bronze | raw source tables, typed, then 30 EUR rate rows deleted - **the demo defect, planted on purpose** |
 | `sql/02_silver.sql` | silver | `fct_order_lines` - **the FX join lives here** |
 | `sql/03_gold.sql` | gold | `fact_sales_daily`, `fact_orders_daily` and the three dimension tables |
+
+Gold trims every dimension value on the way out, because the source carries
+trailing whitespace on some of them and `"Litware "` splits a facet in two.
+
+`dim_product` also carries `family_name` and `family_key`, which the source does
+not. The family is the product name with its trailing colour removed, so the
+2,517 rows collapse to 885 products. Contoso ships one row per colourway and a
+nine-colour camera is nine rows at one identical price, which reads as a
+duplicated catalogue rather than a range. `/api/products` groups on `family_key`;
+only 27 families carry more than one distinct price.
 
 `checks.py` runs after gold and writes `data/meta/quality_checks.json`. `run.py` writes `data/meta/pipeline_runs.json` on every run, whether it passes or not - a failed run is still a run the API has to be able to report on.
 
@@ -85,9 +95,9 @@ The demo period is **`2023-11`**, which is also `DEMO_PERIOD` in `shared/metrics
 
 ## Size budget
 
-`data/gold/` must stay under ~50 MB. It is pulled into the serverless function bundle, which is capped. Measured with ZSTD parquet, the fact at date x store x currency x category x subcategory is 19,537,880 bytes over 1,129,437 rows, or about 19 MB with the dimensions included. That leaves 31 MB of headroom.
+`data/gold/` must stay under ~50 MB. It is pulled into the serverless function bundle, which is capped. As committed, the fact at date x store x currency x category x subcategory is 21,005,105 bytes over 1,282,911 rows, and the whole of `data/gold/` is 21,619,650 bytes. That leaves about 28 MB of headroom.
 
-Daily grain aggregates poorly here: 1.13M fact rows against 2.10M source lines is only a 1.9x reduction. If the budget tightens, coarsen to category only (about 12.5 MB) or move the fact to monthly grain. Do not drop dimensions the registry advertises.
+Daily grain aggregates poorly here: 1.28M fact rows against 2.10M source lines is only a 1.6x reduction. If the budget tightens, coarsen to category only or move the fact to monthly grain. Do not drop dimensions the registry advertises.
 
 If it grows past the cap anyway, host the parquet as a static asset and read it over HTTP instead of bundling it.
 

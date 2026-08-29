@@ -35,7 +35,7 @@ writing the wrong layer.
 | `data/` | A | committed gold parquet + pipeline metadata |
 | `api/` | A | serverless read-only endpoints |
 | `src/ui/`, `src/auth/` | A | dashboard, tiles, chart, report, lineage ladder |
-| `src/mcp/` | **B - owns it entirely** | registration, panel, the 13 tools |
+| `src/mcp/` | **B - owns it entirely** | registration, panel, the WebMCP tools |
 
 `shared/` is the only shared write surface. Changing it means saying so out loud
 first - the server builds SQL from it and the client builds tool `inputSchema`
@@ -94,8 +94,8 @@ Applies to code, comments, commit messages, docs, and anything you say back.
 ## Commands
 
 ```bash
-npm run dev        # vite dev server on :5173
-vercel dev         # serves api/ on :3000 (vite proxies /api to it)
+npm run dev        # the whole app on :5173. vite-api-plugin.ts serves api/
+                   # in process, so there is no second terminal
 npm run typecheck  # tsc --noEmit
 npm run etl        # regenerate data/gold + data/meta from Contoso source
 ```
@@ -112,8 +112,8 @@ Do not build real authentication. The demo session is identity, not security.
 
 ### Issue tracker
 
-GitHub Issues via the `gh` CLI. The remote does not exist yet and must be created
-before any skill tries to write an issue. See `docs/agents/issue-tracker.md`.
+GitHub Issues via the `gh` CLI. The remote is
+`github.com/HuyDoan-2112/webmcp-superweb` and `main` is pushed to it. See `docs/agents/issue-tracker.md`.
 
 ### Triage labels
 

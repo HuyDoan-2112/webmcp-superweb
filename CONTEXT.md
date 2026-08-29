@@ -28,12 +28,26 @@ _Avoid_: landing page, marketing site, guest mode
 What a signed-in person sees: the dashboard and the full tool set. Signing in
 switches surfaces, which swaps one set of registered tools for the other.
 
-The switch is **not a security boundary**. Registration happens in the browser,
-so anyone with devtools can call the internal setter. The boundary is server
-side, where the session decides the depth of an answer. Say "surface" when you
-mean which tools are registered, and "audience" when you mean how deep the
-answer goes.
+Say "surface" when you mean which tools are registered, and "audience" when you
+mean how deep the answer goes. The switch is not a security boundary; README
+says why.
 _Avoid_: private area, admin, authenticated app, logged-in mode
+
+**Family**:
+One product, with every colourway it comes in. The catalogue lists families,
+not SKUs: the source carries one row per colour, so a nine-colour camera is nine
+rows at one identical price and reads as a duplicated catalogue rather than as a
+range. 2,517 rows are 885 families. Say "product" to a reader and "family" in
+code, where the distinction from a variant is load bearing.
+_Avoid_: group, model, parent product, SKU (a SKU is one variant)
+
+**Declarative tool**:
+A tool the browser registers from HTML, because the form carries `toolname` and
+`tooldescription`. Nothing calls `registerTool` and the schema is synthesised
+from the markup, so it cannot drift from the control it describes. Everything
+else we register is an **imperative tool**, written in TypeScript. The
+distinction matters because annotations are not expressible declaratively.
+_Avoid_: automatic tool, HTML tool, form tool
 
 ### Numbers
 
@@ -44,8 +58,7 @@ _Avoid_: KPI, measure
 
 **Dimension**:
 An axis a metric can be split along. Category, store, country, channel. Channel
-is derived rather than read: Contoso has no channel column, so the single store
-with country code `--` is the online channel and everything else is in store.
+is derived rather than read, because the source has no channel column.
 _Avoid_: breakdown, facet, group-by
 
 **Grain**:

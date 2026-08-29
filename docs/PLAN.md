@@ -12,7 +12,50 @@
 | **Data** | Contoso Data Generator V2, 1M-order tier, MIT |
 | **Demo period** | `2023-11`. Contoso orders run 2015-01-01 to 2024-04-20 |
 | **Stack** | Vite + React 19 + Tailwind v4 + shadcn/ui · serverless API over DuckDB · static deploy |
-| **Tools** | 13 WebMCP tools, registered by page context |
+
+This document holds the reasoning: why a thing is the way it is, what was
+rejected, and where the build stands. It does not restate what the code says.
+Counts, file layouts and endpoint lists are read from the repository, because a
+document that repeats them is a staleness bug waiting to be written.
+
+---
+
+## 0. Where the build stands
+
+Written 2026-08-29. This section is the first thing to update when something
+changes, because a plan that reads as a plan after the application exists is
+worse than no plan.
+
+**Done.** Gate 0, both checks. The shared contract in `shared/`. The ETL, bronze
+to silver to gold, with the gold parquet and the run metadata committed. The
+read-only API over DuckDB in `api/`. Both surfaces built and pointed at real
+endpoints, the public catalogue and the dashboard alike. The tool layer in
+`src/mcp/`, imperative tools plus the declarative search form, with the
+visibility panel and the context registration rules. Nine commits of it are on
+the remote, on top of the two scaffold commits, with the catalogue tool rework
+still uncommitted in the working tree.
+
+**Not done.** These are what is left before the deadline, in the order they will
+hurt.
+
+- **No AI agent has chosen and invoked a tool on its own.** Every tool has been
+  driven from the console. §8's gate says the agent answers an unrehearsed
+  question, and console calls do not satisfy that wording. This is the one that
+  decides whether the demo exists.
+- **Nothing is deployed.** Whether Vercel bundles the DuckDB native binary into
+  a serverless function is untested, and it is the kind of thing that fails for
+  the first time on the day. Until it is up, the tool layer's readers fall back
+  to the committed artifacts under `data/meta/` and say which source answered;
+  the owner note at the top of `src/mcp/api.ts` says to delete the fallback once
+  the deployment is real.
+- **The origin trial token is unregistered.** `index.html` still carries
+  `REPLACE_WITH_TOKEN` in a commented-out meta tag. The token binds to the
+  origin, so the deploy URL has to be claimed first.
+- **`build_deck` returns a slide outline, not a `.pptx`.** PptxGenJS is not
+  installed. The fallback in §9 was always to render in the page, and that is
+  what it does.
+- **The report author is hardcoded.** *"Prepared by Maya Okonkwo"* is text in
+  the report rather than a read off the session. See §6.
 
 ---
 
@@ -24,7 +67,7 @@ WebMCP closes that gap, because the agent operates the actual application: the s
 
 **The stakeholder never learns what `fx_rate_not_null` means.** They're told, in plain language, that one section can't be published - and what they can do instead.
 
-The same thirteen tools serve everyone along the chain. A data scientist asks the grain, the exclusions, whether the month will backfill. An engineer asks which run produced it. Same machinery, different depth of answer.
+The same tools serve everyone along the chain. A data scientist asks the grain, the exclusions, whether the month will backfill. An engineer asks which run produced it. Same machinery, different depth of answer.
 
 ---
 
@@ -36,16 +79,17 @@ OFFLINE · your machine, run a few times on the build day
                  bronze→silver→gold   data/meta/*.json
 
 SERVER · serverless functions, same Vercel project
-  Read-only API over DuckDB
-  /api/query · /api/trust · /api/lineage · /api/runs
+  Read-only API over DuckDB, one file per endpoint in api/
 
 BROWSER · what the user sees
-  13 WebMCP tools  →  Dashboard UI  →  /api/*
+  WebMCP tools  →  Catalogue / Dashboard UI  →  /api/*
          ↑
      The agent (ChatGPT / Chrome)
 ```
 
 **A tool never queries data itself.** It drives the UI, and the UI calls the API - the same path a click takes. A tool running SQL directly would just be a badly-hosted MCP server, and WebMCP's purpose is reinforcing the frontend experience, not replacing the backend.
+
+As built, the line has two halves and `src/mcp/api.ts` says so at the top. A tool that *moves the page* goes through the store, never around it, so the human and the agent share one state path. A tool *answering a question* may read the same `/api/*` endpoint the page read, which the trust gate in §5 requires, because the dashboard cannot render a verdict for a slice nobody asked for. Neither half touches DuckDB or composes SQL, and `src/mcp/` imports no database helper. That is the thing the rule was written to prevent.
 
 | Layer | Choice | Note |
 |---|---|---|
@@ -53,120 +97,58 @@ BROWSER · what the user sees
 | Backend | Serverless functions, DuckDB (node) | Read-only. Same project, no separate deploy |
 | Data | Contoso gold parquet, server-side | No payload budget, no COOP/COEP, no WASM |
 | Charts | Recharts | Trend line + grouped bar is the whole need |
-| Deck | PptxGenJS, client-side | Produces a genuine `.pptx` in the browser |
+| Deck | Slide outline, in the page | PptxGenJS is not installed. See §0 and §9 |
 | Auth | Demo session, no passwords | Identity, not security - see §6 |
 | Repo | Public GitHub + MIT | Required by the rules |
 
 The frontend was vanilla TypeScript in the first draft of this plan and is now
 React. The swap was safe because it did not touch the property the demo rests
-on. `src/store.ts` stayed framework-agnostic plain TypeScript with a
-`subscribe()` function, and React reads it through `useSyncExternalStore` in
-`src/hooks/use-store.ts`. Tools still mutate the store by calling its setters,
-the UI still renders from the same state, and `src/mcp/` was not touched at all.
+on: `src/store.ts` stayed framework-agnostic plain TypeScript with a
+`subscribe()` function, and React reads it through `useSyncExternalStore`. Tools
+still mutate the store by calling its setters, the UI still renders from the
+same state, and `src/mcp/` was not touched at all.
 
 ---
 
-## 3. Folder structure
+## 3. Structure and ownership
 
-```
-superweb/
-│
-├── shared/                     ★ both sides import this
-│   ├── types.ts                  the contract: Metric, Row, TrustVerdict,
-│   │                             LineageNode, User, Session, Audience,
-│   │                             Surface, Product
-│   └── metrics.ts                THE registry - one definition per metric,
-│                                 plus DIMENSIONS and DEMO_PERIOD
-│
-├── etl/                        ← person A · offline, your laptop
-│   ├── run.py                    orchestrates; writes meta/ on every run
-│   ├── checks.py                 quality checks → meta/quality_checks.json
-│   ├── sql/
-│   │   ├── 01_bronze.sql         ← load, then plant the FX gap. See ADR 0003
-│   │   ├── 02_silver.sql         ← the FX join lives here (and breaks here)
-│   │   └── 03_gold.sql
-│   └── README.md                 how to regenerate from scratch
-│
-├── data/                       ← ETL output, committed
-│   ├── gold/
-│   │   ├── fact_sales_daily.parquet
-│   │   ├── fact_orders_daily.parquet
-│   │   ├── dim_product.parquet
-│   │   ├── dim_store.parquet
-│   │   └── dim_date.parquet
-│   └── meta/
-│       ├── pipeline_runs.json
-│       ├── quality_checks.json
-│       └── lineage.json          stage-labelled chain
-│
-├── api/                        ← person A · Vercel serverless
-│   ├── query.ts
-│   ├── trust.ts
-│   ├── lineage.ts
-│   ├── runs.ts
-│   └── _lib/
-│       ├── duckdb.ts             connection + query helper
-│       ├── compose.ts            registry → SQL
-│       └── session.ts            who's asking → { userId, name, audience }
-│
-├── src/
-│   ├── main.tsx                  boot: store → auth → UI → tools
-│   ├── App.tsx                   surface switch: public catalogue or dashboard
-│   ├── store.ts                  single source of UI state, plain TypeScript
-│   ├── api.ts                    typed fetch wrappers
-│   │
-│   ├── auth/                   ← demo identity, not security
-│   │   ├── session.ts            reads/writes the demo session cookie
-│   │   ├── users.ts              3-4 seeded people at Kestrel Supply Co.
-│   │   └── switcher.ts           the "signed in as…" control
-│   │
-│   ├── components/             ← person A · the shadcn/ui shell
-│   │   ├── layout/               sidebar, header, period bar, theme toggle
-│   │   └── ui/                   the shadcn primitives
-│   ├── context/                  theme provider
-│   ├── hooks/                    use-store.ts wraps useSyncExternalStore
-│   ├── lib/                      cookies, class-name helper
-│   ├── styles/                   Tailwind v4 entry and theme tokens
-│   │
-│   ├── mcp/                    ← person B · owns this folder entirely
-│   │   ├── register.ts           document.modelContext adapter + context rules
-│   │   ├── panel.ts              the visible "tools available" list
-│   │   └── tools/
-│   │       ├── read.ts           list_metrics, get_metric, breakdown_metric,
-│   │       │                     compare_periods, find_drivers, describe_metric
-│   │       ├── trust.ts          check_data_trust, explain_data_issue,
-│   │       │                     trace_lineage
-│   │       ├── view.ts           filter_dashboard
-│   │       └── report.ts         start_report, draft_report, build_deck
-│   │
-│   └── ui/                     ← person A
-│       ├── dashboard.tsx
-│       ├── tiles.tsx
-│       ├── chart.tsx
-│       ├── breakdown.tsx
-│       ├── report.tsx
-│       ├── verdict.tsx
-│       ├── lineage.tsx           the stage ladder
-│       └── public/               the signed-out catalogue
-│
-├── index.html                    origin-trial <meta> goes here
-├── vite.config.ts
-├── vercel.json
-├── LICENSE                       MIT - required
-└── README.md                     architecture diagram - required
-```
-
-### Five rules about it
+`ls` answers what is where. Five rules answer why.
 
 1. **`shared/` is the whole point.** The metric registry must be importable by the server (to build SQL) and the client (to shape tool `inputSchema` enums). Anywhere else and you maintain it twice, and it drifts by Sunday.
 
-2. **Ownership maps to folders.** Person A owns `etl/`, `api/`, `src/ui/`, `src/auth/` and the React shell under `src/components/`, `src/context/`, `src/hooks/`, `src/lib/` and `src/styles/`. Person B owns `src/mcp/`. The only shared write surface is `shared/`, written together Friday morning and then treated as frozen - if it must change, say so out loud first.
+2. **Ownership maps to folders.** Person A owns `etl/`, `data/`, `api/`, `src/ui/`, `src/auth/` and the React shell: `src/components/`, `src/context/`, `src/hooks/`, `src/lib/`, `src/styles/`. Person B owns `src/mcp/` entirely. The only shared write surface is `shared/`, written together Friday morning and then treated as frozen - if it must change, say so out loud first.
 
 3. **Watch the serverless bundle limit.** Committed parquet gets pulled into the function bundle, which is capped. Keep `data/gold/` under ~50 MB. If it grows, host the parquet as a static asset and read it over HTTP instead of bundling it.
 
-4. **Register tools after the metric list loads.** `main.tsx` boots the store, restores the session, fetches the metric list, *then* calls `register.ts` - so tool schemas carry real metric names as enums rather than a free-text string the agent can typo. Your very first registration is then already dynamic.
+4. **Register tools after the metric list loads.** `main.tsx` boots the store, restores the session, resolves the metric registry, *then* starts the tool layer - so tool schemas carry real metric names as enums rather than a free-text string the agent can typo. Your very first registration is then already dynamic.
 
 5. **Both READMEs matter for judging.** The root one needs the architecture diagram (a requirement). `etl/README.md` is what makes a technical judge believe the pipeline is real rather than staged.
+
+### The API layer
+
+The endpoints are the files in `api/`, one apiece, all read-only, all answering
+at the depth `api/_lib/session.ts` decides and none of them refusing a question.
+Three properties of the layer are not visible from that file listing.
+
+**`/api/query` is the only one that aggregates**, and it composes every column
+and every expression from `shared/metrics.ts` through `_lib/compose.ts`. Nothing
+in that file hardcodes a metric, which is the property that stops the server and
+the tool schemas drifting apart.
+
+**Filter values are bound as parameters; names are not interpolated.** Metric and
+dimension names are looked up in the registry and rejected if absent, so the only
+strings that reach the SQL text are ones this repository wrote. A metric that
+cannot be split along a dimension says so with the grain in the sentence rather
+than returning an empty result.
+
+**`/api/trust` reads the checks the ETL recorded rather than recomputing them.**
+The pipeline evaluated each check while it still had the rejected rows in front
+of it. Recomputing a verdict from the gold table would be inventing it, because
+the rows that would prove a completeness failure are exactly the ones that are
+missing.
+
+Locally there is no second process; `npm run dev` alone is the whole
+application. README explains how.
 
 ---
 
@@ -174,23 +156,72 @@ superweb/
 
 Chrome's guidance is explicit that each registered tool consumes context and that overlapping tools make selection worse. So capability scales through **arguments, not registrations**: `breakdown_metric` alone answers roughly forty questions - six metrics against eight dimensions - from one registration. Forty named tools would answer the same questions and make the agent worse at choosing among them.
 
-Registration follows page state, the pattern the spec already uses for login and logout. Nothing is gated by identity; tools appear when they become **relevant**, keeping the visible surface at nine to thirteen while the answerable space stays large.
+Registration follows page state, the pattern the spec already uses for login and logout. Nothing is gated by identity; tools appear when they become **relevant**, keeping the visible surface small while the answerable space stays large.
 
-| Tool | Registered | What it does |
-|---|---|---|
-| `list_metrics` | always | Discovery - what can be asked, along which dimensions |
-| `get_metric` | always | One KPI for a period, with its delta |
-| `breakdown_metric` | always | Any metric × any dimension, ranked |
-| `compare_periods` | always | Two periods, optionally split by a dimension |
-| `find_drivers` | always | Which dimension explains most of a change - loops server-side, one call |
-| `describe_metric` | always | Definition, **grain, filters applied, exclusions, definition version** |
-| `check_data_trust` | always | Verdict for metric+period: checks, run status, freshness, **completeness** |
-| `filter_dashboard` | always | Sets filters and period - moves what the human sees |
-| `start_report` | always | Opens the report builder. Initiation, not execution |
-| `draft_report` | report open | Writes sections into the report. Refuses untrusted numbers |
-| `build_deck` | report open | Renders the report to a real `.pptx` |
-| `trace_lineage` | after a failed check | The stage-labelled chain, upstream to the source that broke |
-| `explain_data_issue` | after a failed check | The same fact, plain language, zero jargon |
+Four groups with four lifetimes, all of them declared in `src/mcp/register.ts`,
+their tools written in `src/mcp/tools/`. The public catalogue registers five.
+Signing in swaps those for seven. Opening the report registers two more, and a
+check coming back failed registers the two diagnostic tools, so the count on
+screen runs 5 → 7 → 9 → 11 and drops back as the page moves. The public set is
+swapped out rather than kept, because its tools drive a catalogue that is no
+longer on the screen, and a registered tool that cannot move the page is a tool
+the agent can pick by mistake.
+
+The count on screen is what a judge watches move.
+
+Two tools that were planned are not there. `find_drivers` was cut, as the rank
+in §8 says. `compare_periods` was not built either, and its main job is
+absorbed: `/api/query` always runs the preceding period of equal length, so
+every figure the read tools return already carries its delta.
+
+### The declarative tool
+
+`search_catalog_form` is registered by nobody. The catalogue search box in
+`src/ui/public/header.tsx` carries `toolname`, `tooldescription` and
+`toolautosubmit`, its two fields carry `toolparamdescription`, and Chrome 152
+turns that into a tool with no JavaScript at all. Measured 2026-08-29.
+
+The browser synthesises the JSON Schema from the markup. `<select>` options
+become an enum, `min` becomes `minimum`, `type="number"` becomes a number, and a
+`required` attribute becomes the schema's required array. Calling the tool fills
+the real input and the real select, submits the form, runs the page's own submit
+handler, and returns through `SubmitEvent.respondWith`. Values arrive as strings,
+the same as any form submission, so a number field still needs parsing.
+
+This is the strongest thing in the project. The rule at the top of §2 is that a
+tool must take the same path a click takes, and with a declarative tool the
+browser enforces that instead of the developer remembering to. There is no second
+code path, and the schema cannot drift from the form, because it is generated from
+it. It also removes frontend work rather than adding it: an accessible form
+somebody was going to write anyway becomes an agent capability for the price of
+three attributes.
+
+The limit is annotations, which are not expressible declaratively. Anything
+needing `readOnlyHint` or `untrustedContentHint` stays imperative, which is why
+`search_catalog_form` answers with a count and hands off to `search_products` for
+the rows. Product copy is third-party text and has to carry
+`untrustedContentHint`. See ADR 0004.
+
+Also still marked TBD in the explainer, and untested here: whether declarative
+tools support `outputSchema`, and how `step`, `min` and `max` map onto every
+JSON Schema construct. Cross-page responses are read from the destination page's
+first `<script type="application/ld+json">`, which we do not need, because we
+respond on the same page.
+
+### `readOnlyHint`, and why so few tools carry it
+
+The MCP schema defines it as "If true, the tool does not modify its environment.
+Default: false." A tool that moves the page has modified its environment, so the
+hint goes only on the tools that answer without moving anything. Every other
+tool calls a store setter and is marked false.
+
+Marking every read-oriented tool true would have been the flattering answer
+rather than the correct one, and a judge who knows the spec will check.
+`build_deck` is the one arguable case, since it reads the sections `draft_report`
+already committed and mutates nothing, so by the letter it qualifies. It is left
+false deliberately, because it produces an artifact a person then acts on and
+hands around, and a client that auto-approved that with no human in the loop is
+not what anyone wants. Do not "fix" it.
 
 **Sequencing happens through return values, not nesting.** A tool's response is context the agent reads, so it's where you steer what comes next:
 
@@ -204,43 +235,19 @@ return { content: [{ type: "text", text:
 }]};
 ```
 
-Mark every read-only tool `readOnlyHint: true`. Register only from your own modules, never from fetched content - runtime registration has a published attack surface, and one sentence about it in the writeup reads as real engineering maturity.
+Register only from your own modules, never from fetched content - runtime
+registration has a published attack surface, and one sentence about it in the
+writeup reads as real engineering maturity.
 
 ### The metric registry
 
-```ts
-// shared/metrics.ts - every tool and every endpoint reads from here
-{
-  id: "net_revenue",
-  label: "Net Revenue",
-  description: "What customers paid, after discounts, converted to US dollars.",
-  unit: "currency",
-  sql: "SUM(net_amount_usd)",
-  grain: "gold.fact_sales_daily",
-  dimensions: ["date","country","channel","category",
-               "subcategory","brand","store","currency"],
-  exclusions: [
-    "Order lines whose currency had no exchange rate for the order date. " +
-    "They are removed in silver rather than counted as zero."
-  ],
-  definitionVersion: "1.0.0",
-  lineage: {
-    upstream: ["bronze.orders","bronze.orderrows",
-               "bronze.currencyexchange","silver.fct_order_lines"],
-    transforms: [
-      "join orders to orderrows on OrderKey",
-      "net_amount = Quantity * NetPrice (the discount is already inside NetPrice)",
-      "convert to USD via currencyexchange, matched on " +
-      "FromCurrency = CurrencyCode, ToCurrency = 'USD', and the order date"
-    ],
-    owner: "data-platform",
-    freshness: "daily 04:00 UTC"
-  }
-}
-```
+`shared/metrics.ts` is the one definition of every metric: its label, its unit,
+the SQL expression behind it, its grain, the dimensions it can be split along,
+its exclusions and its lineage. The server builds SQL from it and the client
+builds tool schemas from it, so read it there rather than describing it here.
 
-Three things in there are not what a first guess produces, and each was measured
-against the source before it was written down.
+Three things in it are not what a first guess produces, and each was measured
+against the Contoso source before it was written down.
 
 - **There is no discount column.** `orderrows` carries `Quantity`, `UnitPrice`,
   `NetPrice` and `UnitCost`, and the discount already sits inside `NetPrice`.
@@ -266,22 +273,17 @@ came from.
 
 ### The public surface
 
-SuperWeb has two faces on one origin. Signed out, a visitor gets the Kestrel
-product catalogue and their agent gets a small public tool set: browse, search,
-open a product. Signing in switches the shell to the internal dashboard and
-replaces the public tools with the full set above.
-
-That switch is an argument no hosted MCP server can make. One origin serves two
-different tool surfaces decided by session, where a server would need two
-endpoints and two sets of credentials to do the same thing.
+SuperWeb has two faces on one origin, and README describes what the catalogue
+turned out to be. The argument for it belongs here: one origin serves two
+different tool surfaces decided by session, with the agent configuring nothing
+and holding no credential, where a hosted server would need two endpoints and
+two sets of credentials to do the same thing.
 
 Be exact about what this is not. Tool registration happens in the browser, so
 the split is **not a security boundary** - anyone with devtools open can call
 the internal setter and register the internal tools. The real boundary is server
 side, in `api/_lib/session.ts`, which decides the depth of every answer. That is
-the same framing as §6: identity, not security. `/api/lineage` never refuses a
-non-technical user, it answers in plain language instead of stage ladders, and
-it answers an anonymous visitor at catalogue depth for the same reason.
+the same framing as §6: identity, not security.
 
 ---
 
@@ -376,7 +378,7 @@ What it buys:
 
 - **The agent acts in the user's session** - one of WebMCP's actual design rationales, currently undemonstrated.
 - **The server decides the depth of the answer.** `/api/lineage` never *blocks* a non-technical user - that would contradict the whole thesis. It returns the same fact at the depth that fits who's asking: plain language for Maya in Ops, the full stage ladder and rejected-row counts for someone in data.
-- **The report gets an author.** *"Prepared by Maya Okonkwo · Kestrel Supply Co."* in the `.pptx` footer. Tiny detail, disproportionate realism.
+- **The report gets an author.** *"Prepared by Maya Okonkwo · Kestrel Supply Co."* under the report heading. Tiny detail, disproportionate realism. It is hardcoded rather than read from the session, and there is no `.pptx` footer to put it in, so this is half built.
 - **The anonymous visitor is a real audience, not a rejection.** `public` is a depth like the others. The catalogue answers at catalogue depth and never returns an error for not being signed in. See §4.
 
 Keep both `explain_data_issue` and `trace_lineage` as separate tools - the agent should still be able to ask for the technical version explicitly. Identity adjusts the *default depth* of the response, not which tools exist.
@@ -387,10 +389,10 @@ Keep both `explain_data_issue` and `trace_lineage` as separate tools - the agent
 
 | Time | | |
 |---|---|---|
-| **0:00** | *"Draft me the November revenue report for the exec review."* | Period `2023-11`. `start_report` → panel opens → **tool count jumps 9 → 11 on screen** → `draft_report` |
-| **0:40** | Five sections fill in. Europe comes back **blocked**, Online comes back **degraded**. | *"I can't publish Europe - every order line behind it is missing its exchange rate for this month. Online is short about a quarter of its lines for the same reason, so its total is understated."* **Tool count jumps again** as diagnostics register |
+| **0:00** | *"Draft me the November revenue report for the exec review."* | Period `2023-11`. `start_report` → report opens → **tool count jumps 7 → 9 on screen** → `draft_report` |
+| **0:40** | Five sections fill in. Europe comes back **blocked**, Online comes back **degraded**. | *"I can't publish Europe - every order line behind it is missing its exchange rate for this month. Online is short about a quarter of its lines for the same reason, so its total is understated."* **Tool count jumps to 11** as the failed check registers the diagnostics |
 | **1:20** | *"What do you mean, missing?"* | `explain_data_issue` - plain language, no jargon. Publishes the other five with the Online gap flagged |
-| **2:00** | *"Make it a deck."* | `build_deck` → a real `.pptx` lands in downloads, the blocked section carried as a flag rather than a number |
+| **2:00** | *"Make it a deck."* | `build_deck` → the slide outline, with a closing slide naming what was not published rather than dropping it silently |
 | **2:30** | Same question, technical depth | `trace_lineage` → the stage ladder, and 31,084 in · 23,253 out · **7,831 rejected** at the FX join |
 | **2:45** | *"Nobody had to notice. That's the point."* | Open the video on the same line inverted |
 
@@ -398,167 +400,57 @@ Keep both `explain_data_issue` and `trace_lineage` as separate tools - the agent
 
 ---
 
-## 8. The work, in dependency order
+## 8. What is left, and what gets cut
 
-Not a schedule. The build is **one day, Fri Aug 28**, both people. What follows
-is ordered by what blocks what, so anything whose blockers are done can be
-picked up. The two of you alternate in practice, but nothing here requires you
-to be at the keyboard at the same time.
-
-### Gate 0 · PASSED, 2026-08-29
-
-Two checks, twenty minutes each. Both ran and both passed, check 1 with a
-correction to the API name and check 2 with a change to how the defect gets
-made. Everything downstream assumes them.
-
-- **Does `document.modelContext` respond?** Yes. A tool was registered, listed
-  and executed end to end in Chrome 152. The API is on `document`, not
-  `navigator`, and `navigator.modelContext` is `undefined` in that build.
-- **Does Contoso carry non-USD orders with FX rate gaps?** Non-USD orders, yes,
-  47.84% of them. Gaps, no. Coverage is a complete 25-pair by 3,653-day cross
-  product with no holes, and all 2,098,633 order lines match. The defect is
-  planted instead, in bronze, by deleting 30 rate rows. See §5 and ADR 0003.
-
-One part of check 1 is still open. **No AI agent has invoked a registered tool
-through a real agent turn yet.** The page-side half is settled - late
-registration works, the tool appears in `getTools()` immediately, `toolchange`
-fires - but whether an agent re-reads the tool list within one turn is
-undocumented in the spec, and the event obliges nobody to act on it. The §9
-fallback stays live: register the report tools when the panel opens via UI.
-
-> **Gate:** a tool answered, and the FX story is buildable.
-
-#### The API, as measured
-
-Four members on an `EventTarget`: `registerTool`, `getTools`, `executeTool`, and
-an `ontoolchange` event. There is no `provideContext` and no `unregisterTool` -
-unregistration works by passing an `AbortSignal` to `registerTool` and aborting
-it.
-
-```js
-const controller = new AbortController();
-
-await document.modelContext.registerTool({
-  name: "get_metric",
-  title: "Get metric",                    // top level, NOT inside annotations
-  description: "Read one metric for one period from the dashboard.",
-  inputSchema: { type: "object", properties: { … }, required: [ … ] },
-  annotations: { readOnlyHint: true },
-  async execute({ metric, period }, { signal }) {
-    // Drive the UI here. The UI calls /api/*. Never query data from the tool.
-    return { content: [{ type: "text", text: "…" }] };
-  }
-}, { signal: controller.signal });        // controller.abort() unregisters
-```
-
-Five details the tool track will hit, all measured rather than assumed:
-
-- **`title` is a top level field.** Nest it under `annotations` and the browser
-  drops it silently, with no error and an empty `title` on read-back.
-- **`annotations` normalizes to exactly `{readOnlyHint, untrustedContentHint}`.**
-  Any other key is discarded.
-- **`getTools()` returns `inputSchema` as a JSON string**, not the object that
-  went in.
-- **`executeTool` takes the tool record itself, not a name**, plus a JSON string
-  of arguments, and returns a JSON string. Passing a name throws, and passing
-  `{}` instead of `"{}"` throws.
-- **The `execute` callback receives parsed arguments**, not a string. Only the
-  outer `executeTool` boundary deals in JSON text.
-
-#### The deployment caveat
-
-The probe page carried no origin-trial token and worked anyway, which means this
-Chrome has the feature switched on by flag. **A judge's browser will not.** The
-origin trial still matters for the deployed URL, and the token binds to the
-origin, so the Vercel URL has to be claimed before the `<meta http-equiv=
-"origin-trial">` tag in `index.html` can be filled in. Claim the URL first, then
-register, then never rename the project.
-
-### Gate 1 · the contract
-
-`shared/types.ts` and `shared/metrics.ts`, written **together**, then frozen.
-Blocks everything on both tracks, so it happens first and it happens once.
-
-`TrustVerdict` is `ok | degraded | blocked` over metric + period + filter. See §5.
-
-> **Gate:** both tracks can start without asking each other a question.
-
-### Then, two tracks
-
-Ownership maps to folders and does not move. See §3 rule 2.
-
-**Data track** owns `etl/`, `data/`, `api/`, `src/ui/`, `src/auth/` and the
-React shell. Python, DuckDB, SQL and component work.
-
-1. ETL bronze to silver to gold, plus `data/meta/*.json` written on every run
-2. `/api/query` and `/api/trust` reading the registry
-3. KPI tiles fed by the real API
-4. Trend chart, breakdown table, filters
-5. Report builder UI
-6. `/api/lineage` and `/api/runs`, the stage ladder, demo session and switcher
-
-**Tool track** owns `src/mcp/` entirely. Thirteen schemas and a tuning pass.
-Whoever is more comfortable in TypeScript takes this half.
-
-1. Registration layer and the `document.modelContext` adapter
-2. The always-on read tools, in the rank order below
-3. Tool-visibility panel
-4. Context registration: tools appearing when the report opens and after a
-   failed check
-5. `draft_report` with the trust gate wired to `/api/trust`
-6. Description tuning against real transcripts
+The build happened, in one day, both people, in dependency order: the shared
+contract first, then the two tracks in parallel, data one side and tools the
+other. Gate 0 passed on 2026-08-29 with a correction to the API name
+(`document.modelContext`, not `navigator`) and a change to how the defect gets
+made (planted, not found - ADR 0003). What the browser API actually does, as
+measured rather than as the explainer describes it, is recorded in
+`src/mcp/model-context.d.ts`. What remains is in §0, and the remaining days are
+not build days: treat any code written in them as a regression risk against a
+demo that already works. Polish, record a video with a backup take, submit
+mid-morning on the 3rd.
 
 ### Tool rank
 
-Build in this order. Everything from 9 down is **stretch**: written as an issue,
-cut without ceremony if the day runs long. Nothing is removed from the plan, but
-the ranking is what stops you building `find_drivers` at 2am while
-`draft_report` is still broken.
+This is the ranking that stopped anyone building `find_drivers` at 2am while
+`draft_report` was still broken. It is still the cut list if the freeze bites:
+everything from 9 down was stretch, and cutting starts at the bottom.
 
-| # | Tool | |
-|---|---|---|
-| 1 | `list_metrics` | core |
-| 2 | `get_metric` | core |
-| 3 | `breakdown_metric` | core |
-| 4 | `describe_metric` | core |
-| 5 | `check_data_trust` | core |
-| 6 | `filter_dashboard` | core |
-| 7 | `draft_report` | core, the demo |
-| 8 | `explain_data_issue` | core, the demo |
-| 9 | `trace_lineage` | stretch, pull back first |
-| 10 | `start_report` | stretch |
-| 11 | `compare_periods` | stretch |
-| 12 | `build_deck` | stretch |
-| 13 | `find_drivers` | stretch, cut first |
+| # | Tool | | As built |
+|---|---|---|---|
+| 1 | `list_metrics` | core | built |
+| 2 | `get_metric` | core | built |
+| 3 | `breakdown_metric` | core | built |
+| 4 | `describe_metric` | core | built |
+| 5 | `check_data_trust` | core | built |
+| 6 | `filter_dashboard` | core | built |
+| 7 | `draft_report` | core, the demo | built |
+| 8 | `explain_data_issue` | core, the demo | built |
+| 9 | `trace_lineage` | stretch, pull back first | built |
+| 10 | `start_report` | stretch | built |
+| 11 | `compare_periods` | stretch | not built. `/api/query` returns the prior-period delta on every row, which is most of what it was for |
+| 12 | `build_deck` | stretch | built, as a slide outline |
+| 13 | `find_drivers` | stretch, cut first | cut. It overlaps `breakdown_metric` |
+
+The catalogue tools and the declarative form are not on this list, because the
+public surface was not in the plan when the list was written. They rank below
+everything above and above nothing.
 
 > **Gate:** the agent answers an unrehearsed question correctly, and a section
 > gets blocked in plain language without anyone touching a switch.
-
-### After the build day
-
-The remaining days are not build days. Treat any code written in them as a
-regression risk against a demo that already works.
-
-- **Polish**: loading and empty states, error copy, keyboard focus. Clean
-  machine, fresh browser profile, in-app browser check.
-- **Record**: video under 3 minutes with audio. Record a backup take in case the
-  live agent misbehaves on the day.
-- **Submit**: README with architecture diagram, MIT licence, Devpost
-  description covering use case, UX benefit and WebMCP implementation. Save the
-  submission on Devpost rather than locally, and submit mid-morning on the 3rd,
-  because Devpost slows in the final hour.
 
 ## 9. Risks
 
 | | Risk | Response |
 |---|---|---|
-| ~~HIGH~~ | ~~**`navigator.modelContext` may not respond at all**~~ | **Retired at Gate 0.** `document.modelContext` responds and a full round trip completed in Chrome 152 |
-| ~~HIGH~~ | ~~**The FX story needs non-USD orders in Contoso**~~ | **Retired at Gate 0.** Non-USD is 47.84% of orders. Coverage is complete, so the gap is planted rather than found. See ADR 0003 |
 | **HIGH** | **Mid-turn tool registration is undocumented.** The spec doesn't say whether the agent sees newly registered tools in the same turn | Still open. Page-side is settled - `toolchange` fires and `getTools()` updates - but agent-side same-turn visibility is documented nowhere. If it fails, register the report tools when the panel opens via UI instead |
 | **HIGH** | **Origin-trial token bound to the wrong origin.** The dev machine has the feature on by flag and hides this entirely | Claim the URL before the build day; never rename the project. Test in a browser with no flag set |
 | **HIGH** | **One build day means no second attempt.** A track that stalls has no later day to absorb it | The tool rank in §8. Stop building down the list the moment the demo arc runs end to end |
-| MED | **Wrong tool selection**, the most common way a WebMCP demo dies | Thirteen tools is enough for confusion. Descriptions are prompts: tune against real transcripts, not by reasoning about them |
-| MED | **`.pptx` download blocked in the in-app browser** | `build_deck` is rank 12 and already stretch. Fallback: render in-page, offer the file in Chrome only |
+| MED | **Wrong tool selection**, the most common way a WebMCP demo dies | Eleven at once is enough for confusion. Descriptions are prompts: tune against real transcripts, not by reasoning about them |
+| MED | **A `.pptx` download is blocked in the in-app browser** | Response taken. `build_deck` is rank 12 in §8 and returns a slide outline rendered in the page. PptxGenJS is not installed and no file is offered |
 | MED | **Serverless cold starts** make the agent look slow on the first call | Warm the function before recording; keep gold small enough to query well under a second |
 | MED | **`shared/` drifts** because both tracks need it and it was frozen early | Changing it means saying so out loud first. It is the only shared write surface |
 
@@ -574,21 +466,9 @@ The tool rank in §8 handles the tool half. This is everything else:
 Channel has moved off this list. It is the online store, the online store is
 the degraded section, and the degraded section is a third of the demo.
 
----
-
-## 10. Gate 0 checklist, and the licensing position
-
-Answered 2026-08-29. Kept rather than deleted, because the record of what was
-checked is worth more than a tidy list.
-
-- [x] **Does Contoso carry a currency code on orders, with non-USD rows?** Yes. `orders.CurrencyCode`, five values, non-USD is 47.84% of orders.
-- [x] **What date range does the 1M tier actually cover?** `orders.DT` runs 2015-01-01 to 2024-04-20. The tail thins first, so nothing after 2024-01 is usable. Demo period is `2023-11`.
-- [x] **Confirm the real column names** in the Orders / OrderRows variant. PascalCase throughout, and the order date is `orders.DT`. `orderrows` carries `Quantity`, `UnitPrice`, `NetPrice`, `UnitCost` and no discount column. See §4 and `etl/README.md`.
-- [ ] **Origin-trial token registered** against the final deploy URL. Still open, and the only one. See §8.
-
-**On naming and licences.** Nothing is owed to anyone: the SQLBI data repo is MIT, free for any use including commercial. Contoso exists precisely to be the fictional company in demos, so using the name carries no risk - just don't use Microsoft logos or imply their involvement. Rename the company anyway, for product reasons: a UI that says "Contoso" reads as a tutorial built on sample data; one that says **Kestrel Supply Co.** reads as a product seeded with sample data.
-
-All dependency licences clear for the "original work" requirement: Contoso data MIT, DuckDB MIT, PptxGenJS MIT, Recharts MIT, shadcn/ui MIT. The dashboard shell is adapted from `satnaing/shadcn-admin`, MIT, whose licence is retained verbatim at `vendor/shadcn-admin/LICENSE`.
+Nothing on the list was taken. The switcher, the stage ladder and all eight
+registry dimensions are built. It stays live for the days that are left, and it
+is still cut from the top.
 
 ---
 
