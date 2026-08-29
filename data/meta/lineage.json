@@ -1,0 +1,35 @@
+{
+  "metric": "net_revenue",
+  "nodes": [
+    {
+      "node": "net_revenue",
+      "stage": "dashboard metric",
+      "summary": "The revenue figure on the dashboard."
+    },
+    {
+      "node": "gold.fact_sales_daily",
+      "stage": "curated table",
+      "rowsOut": 1282911,
+      "summary": "Daily totals, ready to read."
+    },
+    {
+      "node": "silver.fct_order_lines",
+      "stage": "transformation",
+      "rowsIn": 2098633,
+      "rowsOut": 2090802,
+      "failed": true,
+      "summary": "Where each order is converted into US dollars. 7,831 order lines were lost here."
+    },
+    {
+      "node": "bronze.currencyexchange",
+      "stage": "warehouse",
+      "rowsOut": 91295,
+      "summary": "The stored exchange rates, one per currency pair per day."
+    },
+    {
+      "node": "FX rate feed",
+      "stage": "operational system",
+      "summary": "The upstream system the rates arrive from."
+    }
+  ]
+}
