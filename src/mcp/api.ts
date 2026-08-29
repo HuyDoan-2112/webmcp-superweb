@@ -21,7 +21,7 @@
 // badly hosted MCP server wearing a browser as a costume. There is no DuckDB
 // import here, no SQL, and no database connection.
 //
-// The endpoints only answer when `vercel dev` is running behind the vite proxy,
+// The endpoints answer under `npm run dev`, which serves api/ in process
 // and during the build week that is often not the case. So every reader tries
 // /api/* first and falls back to the committed artifact under data/meta/ that
 // the endpoint itself reads: api/_lib/trust.ts loads exactly this file. The
@@ -42,6 +42,7 @@ import type {
   MetricId,
   MetricResult,
   PipelineRun,
+  Product,
   TrustReport,
   TrustVerdict,
 } from "@shared/types";
@@ -294,3 +295,129 @@ export const NO_QUERY_ENDPOINT =
   "seeded placeholder values. Everything below about the definition and the " +
   "data quality is real and comes from the pipeline run that produced the " +
   "current data.";
+
+// ---------------------------------------------------------------- products
+
+/**
+ * The public catalogue, read from the same endpoint the catalogue page reads.
+ *
+ * This is the second half of the boundary at the top of this file. A tool must
+ * not hold its own copy of the product list: it did once, 24 hardcoded rows
+ * against the page's 885 families, and the agent and the page disagreed about
+ * what the shop stocked. One endpoint, one answer, or the whole argument for
+ * driving the UI collapses.
+ *
+ * The types below mirror what api/products.ts composes, and are declared here
+ * rather than imported from src/api.ts so the tool layer and the dashboard's
+ * fetch layer stay separable. `Product` itself comes from the frozen contract.
+ */
+
+export type Facet = { label: string; n: number };
+
+export type PriceBand = { min: number | null; max: number | null; n: number };
+
+/**
+ * A product as the catalogue shows it: every colourway of one thing.
+ *
+ * Contoso ships one row per colourway, so 2,517 SKUs are 885 products. Tool
+ * output has to say "products with colourways" and never "lines", because the
+ * page says products and the two must agree word for word.
+ */
+export type ProductFamily = {
+  familyKey: string;
+  familyName: string;
+  brand: string;
+  manufacturer: string;
+  categoryName: string;
+  subCategoryName: string;
+  priceMin: number;
+  priceMax: number;
+  colors: string[];
+  variants: Product[];
+};
+
+export type CatalogFacets = {
+  categories: Facet[];
+  brands: Facet[];
+  subcategories: Facet[];
+  /** Folded to lower case, because the data records both "Blue" and "blue". */
+  colors: Facet[];
+  priceBands: PriceBand[];
+};
+
+export type ProductsResponse = {
+  families: ProductFamily[];
+  /** How many families match. Not how many this page returned. */
+  total: number;
+  offset: number;
+  limit: number;
+  facets: CatalogFacets;
+};
+
+export type ProductDetailResponse = {
+  product: Product;
+  family: ProductFamily;
+  related: ProductFamily[];
+};
+
+/** Exactly the arguments src/ui/public/catalog.tsx passes. */
+export type ProductQueryArgs = {
+  search?: string;
+  category?: string | null;
+  brand?: string | null;
+  subcategory?: string | null;
+  color?: string | null;
+  minPrice?: number | null;
+  maxPrice?: number | null;
+  offset?: number;
+  limit?: number;
+};
+
+function productQs(args: ProductQueryArgs): string {
+  const search = new URLSearchParams();
+  for (const [key, value] of Object.entries(args)) {
+    if (value === undefined || value === null || value === "") continue;
+    search.set(key, String(value));
+  }
+  const body = search.toString();
+  return body === "" ? "" : `?${body}`;
+}
+
+/**
+ * Read the catalogue. Returns null when the endpoint did not answer, so the
+ * caller can say the shop is unreachable rather than report a count of zero,
+ * which would read as "we stock nothing".
+ */
+export async function readProducts(
+  args: ProductQueryArgs,
+): Promise<ProductsResponse | null> {
+  const body = await tryJson<ProductsResponse>(
+    `/api/products${productQs(args)}`,
+  );
+  return body && Array.isArray(body.families) ? body : null;
+}
+
+/** One SKU by product key, with its whole family and its neighbours. */
+export async function readProduct(
+  productKey: number,
+): Promise<ProductDetailResponse | null> {
+  const body = await tryJson<ProductDetailResponse>(
+    `/api/products?productKey=${encodeURIComponent(String(productKey))}`,
+  );
+  return body && body.product ? body : null;
+}
+
+/** How many products match, without pulling a page of rows back. */
+export async function countProducts(
+  args: ProductQueryArgs,
+): Promise<number | null> {
+  const body = await readProducts({ ...args, offset: 0, limit: 1 });
+  return body ? body.total : null;
+}
+
+/** One sentence for when the catalogue endpoint is down. */
+export const NO_PRODUCTS_ENDPOINT =
+  "The catalogue did not answer, so there is no count to report and none will " +
+  "be invented. /api/products is what the page itself reads, so the visitor " +
+  "is most likely looking at an error too. Say so rather than describing a " +
+  "catalogue you cannot see.";

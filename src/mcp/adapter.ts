@@ -93,7 +93,15 @@ export class ToolGroup {
 
   constructor(
     readonly id: string,
-    private readonly build: () => ToolSpec[],
+    /**
+     * Built at open time, not at import time, and allowed to be async.
+     *
+     * The public group fetches the catalogue facets before it builds its
+     * schemas, so `category`, `brand`, `subcategory` and `colour` carry real
+     * enums read from the data rather than free text an agent can typo. Nothing
+     * is registered until that resolves.
+     */
+    private readonly build: () => ToolSpec[] | Promise<ToolSpec[]>,
   ) {}
 
   get isOpen(): boolean {
@@ -106,7 +114,11 @@ export class ToolGroup {
     if (!mc) return;
     const controller = new AbortController();
     this.controller = controller;
-    for (const spec of this.build()) {
+    const specs = await this.build();
+    // A close() while the build was in flight wins. Registering afterwards
+    // would attach tools to a controller nobody is holding any more.
+    if (this.controller !== controller) return;
+    for (const spec of specs) {
       // Sequential rather than Promise.all: registration order is the order
       // getTools() reports, and the panel reads that order straight through.
       await mc.registerTool(guard(spec), { signal: controller.signal });

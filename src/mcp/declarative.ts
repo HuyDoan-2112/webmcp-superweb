@@ -1,32 +1,40 @@
-// The declarative half of WebMCP, ready for the form that does not exist yet.
+// The declarative half of WebMCP, in use.
 //
 // A form carrying `toolname` and `tooldescription` becomes a registered tool
 // with no JavaScript at all. The browser synthesises the JSON Schema from the
 // markup: `<select>` options become an enum, `min` becomes `minimum`,
-// `type="number"` becomes a number, `required` becomes the required array.
-// Verified end to end in Chrome 152; see scratchpad gate0-webmcp/DECLARATIVE-API.md.
+// `type="number"` becomes a number, and `required` on a field becomes the
+// schema's required array. None of that is written by hand and none of it can
+// drift, because it is generated from the control the person uses.
+//
+// The attributes below are spread onto the catalogue search form in
+// src/ui/public/header.tsx. Chrome 152 registers it as `search_catalog_form`,
+// alongside the five imperative public tools, and the round trip is verified:
+// calling it fills the real input and the real select, runs the page's own
+// submit handler, and answers through `respondWith`.
 //
 // This is the cheapest layer there is, and where an interaction is genuinely a
-// form it is also the most correct one, because the schema is generated from
-// the control rather than written beside it. It cannot drift, and the agent
-// fills the same input a person fills.
+// form it is also the most correct one. CLAUDE.md says a tool must drive the UI
+// rather than query data, so that it takes the same path a click takes. With a
+// declarative tool the browser enforces that instead of us agreeing to it every
+// time. There is no second code path to keep honest.
 //
-// WHY THE CATALOGUE SEARCH IS NOT DECLARATIVE TODAY, two reasons:
+// IT ANSWERS WITH COUNTS, NOT WITH PRODUCT ROWS, AND THAT IS DELIBERATE.
 //
-//   1. There is no form. The search control in src/ui/public/header.tsx is a
-//      bare <Input> bound to the store, not wrapped in a <form>, and that file
-//      belongs to the other track and is being rewritten right now.
-//   2. Annotations are not expressible declaratively, and `search_products`
-//      returns product names and brand copy, which is third party text. Our own
-//      rule puts `untrustedContentHint: true` on every public tool that returns
-//      catalogue text, and a declarative tool cannot carry it.
+// Annotations are not expressible declaratively, and supplier product copy is
+// exactly what `untrustedContentHint` exists for. So the declarative tool
+// reports how many products match and what page the visitor is on, and points
+// at `search_products` for the names, codes and prices. That tool is
+// imperative, carries the annotation, and drives the same store setters.
 //
-// So `search_products` is registered imperatively in src/mcp/tools/catalog.ts
-// against the same store setter the input calls. When the header search grows a
-// real <form>, spread CATALOG_SEARCH_FORM below onto it and add the
-// `toolparamdescription` attributes to its fields. That gives the page a second
-// declarative tool alongside the imperative one for the case where the returned
-// text is a count rather than product copy.
+// The two are not duplicates. The form tool is the interaction a person
+// performs; `search_products` is the question an agent asks about the result.
+//
+// Limits, from the explainer: whether declarative tools support `outputSchema`,
+// and how `step`, `min` and `max` map onto every JSON Schema construct, are
+// still marked TBD. Cross-page responses are read from the destination page's
+// first `<script type="application/ld+json">`, which we do not need because we
+// respond on the same page.
 
 import type { ToolResponse } from "./adapter";
 
@@ -57,10 +65,10 @@ export const CATALOG_SEARCH_FIELDS = {
 } as const;
 
 /**
- * The markup the attributes above produce, kept here so the shape is reviewable
- * without a browser. Chrome 152 turns exactly this into a tool whose
- * inputSchema has `q` as a required string and `category` as a string enum
- * built from the option values.
+ * The markup these attach to, kept here so the shape is reviewable without a
+ * browser. Chrome 152 turns exactly this into a tool whose inputSchema has `q`
+ * as a required string and `category` as a string enum built from the option
+ * values. The live version is in src/ui/public/header.tsx.
  *
  *   <form {...CATALOG_SEARCH_FORM} onSubmit={onSubmit}>
  *     <input name="q" {...CATALOG_SEARCH_FIELDS.q} required />
@@ -71,7 +79,7 @@ export const CATALOG_SEARCH_FIELDS = {
  *   </form>
  */
 export const CATALOG_SEARCH_MARKUP_NOTE =
-  "See src/mcp/declarative.ts for the markup this attaches to.";
+  "Spread onto the search form in src/ui/public/header.tsx.";
 
 /**
  * Answer a declarative tool call from inside a normal submit handler.
