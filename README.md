@@ -34,17 +34,23 @@ data outnumbers the people who understand it.
 
 ## The demonstration
 
-Ask the agent for a revenue report. It writes four sections and refuses the
-fifth:
+Ask the agent for a revenue report. It writes five sections, refuses one, and
+flags another:
 
-> I can't publish the Europe numbers. The data behind them is incomplete for
-> this period, so the 38% decline isn't real.
+> I can't publish Europe. Every order line behind it lost its exchange rate for
+> this month, so there is no number to give you. Online is short about a quarter
+> of its lines for the same reason, so that total is understated.
 
-Nobody asked it to check. The business sells in several currencies, so every
-order has to be converted to USD using the exchange rate for the day it was
-placed. Some rate rows are missing, so those orders silently fell out of the
-pipeline. Not zero, not an error. Gone. Europe did not decline 38%; 121,513
-order lines were never counted.
+Nobody asked it to check. The business sells in five currencies, so every order
+has to be converted to USD using the exchange rate for the day it was placed. A
+month of euro rates is missing, so those orders silently fell out of the
+pipeline. Not zero, not an error. Gone. 7,831 of the month's 31,084 order lines
+were never counted.
+
+Europe is the easy half. The loss there is total, so the section has no number
+to mislead anyone with. Online is the dangerous half: it keeps 14,043 of its
+18,831 lines and produces a figure that looks entirely ordinary and is a quarter
+too small. That is the one that gets pasted into a deck.
 
 Finding that out the old way means knowing an analyst exists, knowing to
 suspect the number, asking, and waiting. Here the explanation arrives in the
@@ -61,7 +67,7 @@ Same path a click takes. A tool running SQL directly would just be a
 badly-hosted MCP server sitting in a browser tab.
 
 **Capability scales through arguments, not registrations.** `breakdown_metric`
-alone answers roughly forty questions, six metrics against seven dimensions,
+alone answers roughly forty questions, six metrics against eight dimensions,
 from a single registration. Forty named tools would answer the same questions
 and make the agent worse at choosing between them.
 
@@ -69,6 +75,19 @@ and make the agent worse at choosing between them.
 the report tools when the report opens, the diagnostic tools after a check
 fails. Nothing is gated by identity. The visible surface stays small while the
 answerable space stays large.
+
+**One origin serves two tool surfaces.** Signed out, a visitor gets the Kestrel
+product catalogue and their agent gets a small public tool set for browsing it.
+Signing in switches the shell to the internal dashboard and replaces those tools
+with the full set. A hosted MCP server cannot imitate that without two endpoints
+and two sets of credentials, because it has no session to switch on.
+
+That split is not a security boundary, and the code does not pretend otherwise.
+Registration happens in the browser, so anyone with devtools open can call the
+internal setter. The boundary that matters is server side: `api/_lib/session.ts`
+decides the depth of every answer. `/api/lineage` never refuses a non-technical
+user, it answers in plain language instead of stage ladders, and it answers an
+anonymous visitor at catalogue depth. Identity here is depth, not access.
 
 **Schemas are built from the metric registry at runtime.** Tools register after
 the metric list loads, so their arguments carry real metric names as enums
@@ -78,10 +97,11 @@ rather than free text the agent can typo.
 agent reads, so that is where the next step gets steered:
 
 ```
-Drafted 4 of 5 sections. The Europe section is BLOCKED: the data behind
-net_revenue for this period failed a completeness check, so the 38% decline
-is not trustworthy. Use explain_data_issue to tell the user why, then publish
-without it or wait for a reload.
+Drafted 5 of 6 sections. The Europe section is BLOCKED: all 3,043 order lines
+behind net_revenue for this period lost their exchange rate, so there is no
+figure to publish. Online is DEGRADED, a quarter of its lines went the same
+way. Use explain_data_issue to tell the user why, then publish without Europe
+or wait for a reload.
 ```
 
 Every read-only tool is marked `readOnlyHint: true`. Tools are registered only
@@ -127,10 +147,10 @@ chain has to point at something true to be worth anything.
 
 | Layer | Choice |
 |---|---|
-| Frontend | Vite + vanilla TS, small central store |
+| Frontend | Vite + React 19 + Tailwind + shadcn/ui, framework-agnostic store |
 | Backend | Vercel serverless functions, DuckDB, read-only |
 | Data | Contoso Data Generator V2, 1M-order tier (MIT) |
-| Charts | Observable Plot |
+| Charts | Recharts |
 | Auth | Demo session. Identity, not security. No passwords |
 
 ## Running it
@@ -149,8 +169,12 @@ npx vercel dev       # serves api/ on :3000
 The committed gold parquet is enough to run the dashboard. To regenerate it
 from the Contoso source, see [etl/README.md](etl/README.md).
 
-WebMCP requires a browser that exposes `navigator.modelContext`: Chrome with
-the feature enabled, or ChatGPT's in-app browser.
+WebMCP requires a browser that exposes `document.modelContext`: Chrome with the
+feature enabled, or ChatGPT's in-app browser. The interface is `registerTool`,
+`getTools` and `executeTool` on an event target that fires `toolchange`;
+unregistering means aborting the `AbortSignal` passed to `registerTool`.
+Measured in Chrome 152 on 2026-08-29. `navigator.modelContext` is undefined
+there, whatever older write-ups say.
 
 ## Repository
 
@@ -164,5 +188,12 @@ the feature enabled, or ChatGPT's in-app browser.
 ## Licence
 
 MIT, see [LICENSE](LICENSE). Contoso Data Generator data is MIT, DuckDB MIT,
-PptxGenJS MIT, Observable Plot ISC. The sample data is Microsoft's Contoso
-dataset, published to be used this way. The business it describes is not real.
+PptxGenJS MIT, Recharts MIT.
+
+The dashboard shell (layout, theme tokens and the shadcn/ui component set) is
+adapted from [satnaing/shadcn-admin](https://github.com/satnaing/shadcn-admin),
+MIT, Copyright (c) 2024 Sat Naing. Its licence is retained verbatim at
+[vendor/shadcn-admin/LICENSE](vendor/shadcn-admin/LICENSE).
+
+The sample data is Microsoft's Contoso dataset, published to be used this way.
+The business it describes is not real.

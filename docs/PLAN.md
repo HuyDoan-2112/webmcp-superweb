@@ -10,7 +10,8 @@
 | **Build day** | Fri Aug 28 - one day, both people |
 | **Team** | 2 people |
 | **Data** | Contoso Data Generator V2, 1M-order tier, MIT |
-| **Stack** | Vite + vanilla TS · serverless API over DuckDB · static deploy |
+| **Demo period** | `2023-11`. Contoso orders run 2015-01-01 to 2024-04-20 |
+| **Stack** | Vite + React 19 + Tailwind v4 + shadcn/ui · serverless API over DuckDB · static deploy |
 | **Tools** | 13 WebMCP tools, registered by page context |
 
 ---
@@ -48,13 +49,20 @@ BROWSER · what the user sees
 
 | Layer | Choice | Note |
 |---|---|---|
-| Frontend | Vite + vanilla TS, ~50-line store | Tools mutate the store; UI and agent share one state path |
+| Frontend | Vite + React 19 + Tailwind v4 + shadcn/ui | Tools mutate the store; UI and agent share one state path |
 | Backend | Serverless functions, DuckDB (node) | Read-only. Same project, no separate deploy |
 | Data | Contoso gold parquet, server-side | No payload budget, no COOP/COEP, no WASM |
-| Charts | Observable Plot | Trend line + grouped bar is the whole need |
+| Charts | Recharts | Trend line + grouped bar is the whole need |
 | Deck | PptxGenJS, client-side | Produces a genuine `.pptx` in the browser |
 | Auth | Demo session, no passwords | Identity, not security - see §6 |
 | Repo | Public GitHub + MIT | Required by the rules |
+
+The frontend was vanilla TypeScript in the first draft of this plan and is now
+React. The swap was safe because it did not touch the property the demo rests
+on. `src/store.ts` stayed framework-agnostic plain TypeScript with a
+`subscribe()` function, and React reads it through `useSyncExternalStore` in
+`src/hooks/use-store.ts`. Tools still mutate the store by calling its setters,
+the UI still renders from the same state, and `src/mcp/` was not touched at all.
 
 ---
 
@@ -65,14 +73,16 @@ superweb/
 │
 ├── shared/                     ★ both sides import this
 │   ├── types.ts                  the contract: Metric, Row, TrustVerdict,
-│   │                             LineageNode, User, Audience
-│   └── metrics.ts                THE registry - one definition per KPI
+│   │                             LineageNode, User, Session, Audience,
+│   │                             Surface, Product
+│   └── metrics.ts                THE registry - one definition per metric,
+│                                 plus DIMENSIONS and DEMO_PERIOD
 │
 ├── etl/                        ← person A · offline, your laptop
 │   ├── run.py                    orchestrates; writes meta/ on every run
 │   ├── checks.py                 quality checks → meta/quality_checks.json
 │   ├── sql/
-│   │   ├── 01_bronze.sql
+│   │   ├── 01_bronze.sql         ← load, then plant the FX gap. See ADR 0003
 │   │   ├── 02_silver.sql         ← the FX join lives here (and breaks here)
 │   │   └── 03_gold.sql
 │   └── README.md                 how to regenerate from scratch
@@ -80,6 +90,7 @@ superweb/
 ├── data/                       ← ETL output, committed
 │   ├── gold/
 │   │   ├── fact_sales_daily.parquet
+│   │   ├── fact_orders_daily.parquet
 │   │   ├── dim_product.parquet
 │   │   ├── dim_store.parquet
 │   │   └── dim_date.parquet
@@ -99,17 +110,26 @@ superweb/
 │       └── session.ts            who's asking → { userId, name, audience }
 │
 ├── src/
-│   ├── main.ts                   boot: store → auth → UI → tools
-│   ├── store.ts                  ~50 lines, single source of UI state
+│   ├── main.tsx                  boot: store → auth → UI → tools
+│   ├── App.tsx                   surface switch: public catalogue or dashboard
+│   ├── store.ts                  single source of UI state, plain TypeScript
 │   ├── api.ts                    typed fetch wrappers
 │   │
 │   ├── auth/                   ← demo identity, not security
 │   │   ├── session.ts            reads/writes the demo session cookie
-│   │   ├── users.ts              3–4 seeded people at Kestrel Supply Co.
+│   │   ├── users.ts              3-4 seeded people at Kestrel Supply Co.
 │   │   └── switcher.ts           the "signed in as…" control
 │   │
+│   ├── components/             ← person A · the shadcn/ui shell
+│   │   ├── layout/               sidebar, header, period bar, theme toggle
+│   │   └── ui/                   the shadcn primitives
+│   ├── context/                  theme provider
+│   ├── hooks/                    use-store.ts wraps useSyncExternalStore
+│   ├── lib/                      cookies, class-name helper
+│   ├── styles/                   Tailwind v4 entry and theme tokens
+│   │
 │   ├── mcp/                    ← person B · owns this folder entirely
-│   │   ├── register.ts           modelContext adapter + context rules
+│   │   ├── register.ts           document.modelContext adapter + context rules
 │   │   ├── panel.ts              the visible "tools available" list
 │   │   └── tools/
 │   │       ├── read.ts           list_metrics, get_metric, breakdown_metric,
@@ -120,12 +140,14 @@ superweb/
 │   │       └── report.ts         start_report, draft_report, build_deck
 │   │
 │   └── ui/                     ← person A
-│       ├── dashboard.ts
-│       ├── tiles.ts
-│       ├── chart.ts
-│       ├── breakdown.ts
-│       ├── report.ts
-│       └── lineage.ts            the stage ladder
+│       ├── dashboard.tsx
+│       ├── tiles.tsx
+│       ├── chart.tsx
+│       ├── breakdown.tsx
+│       ├── report.tsx
+│       ├── verdict.tsx
+│       ├── lineage.tsx           the stage ladder
+│       └── public/               the signed-out catalogue
 │
 ├── index.html                    origin-trial <meta> goes here
 ├── vite.config.ts
@@ -138,11 +160,11 @@ superweb/
 
 1. **`shared/` is the whole point.** The metric registry must be importable by the server (to build SQL) and the client (to shape tool `inputSchema` enums). Anywhere else and you maintain it twice, and it drifts by Sunday.
 
-2. **Ownership maps to folders.** Person A owns `etl/`, `api/`, `src/ui/`. Person B owns `src/mcp/`. The only shared write surface is `shared/`, written together Friday morning and then treated as frozen - if it must change, say so out loud first.
+2. **Ownership maps to folders.** Person A owns `etl/`, `api/`, `src/ui/`, `src/auth/` and the React shell under `src/components/`, `src/context/`, `src/hooks/`, `src/lib/` and `src/styles/`. Person B owns `src/mcp/`. The only shared write surface is `shared/`, written together Friday morning and then treated as frozen - if it must change, say so out loud first.
 
 3. **Watch the serverless bundle limit.** Committed parquet gets pulled into the function bundle, which is capped. Keep `data/gold/` under ~50 MB. If it grows, host the parquet as a static asset and read it over HTTP instead of bundling it.
 
-4. **Register tools after the metric list loads.** `main.ts` boots the store, restores the session, fetches the metric list, *then* calls `register.ts` - so tool schemas carry real metric names as enums rather than a free-text string the agent can typo. Your very first registration is then already dynamic.
+4. **Register tools after the metric list loads.** `main.tsx` boots the store, restores the session, fetches the metric list, *then* calls `register.ts` - so tool schemas carry real metric names as enums rather than a free-text string the agent can typo. Your very first registration is then already dynamic.
 
 5. **Both READMEs matter for judging.** The root one needs the architecture diagram (a requirement). `etl/README.md` is what makes a technical judge believe the pipeline is real rather than staged.
 
@@ -150,7 +172,7 @@ superweb/
 
 ## 4. Tool surface
 
-Chrome's guidance is explicit that each registered tool consumes context and that overlapping tools make selection worse. So capability scales through **arguments, not registrations**: `breakdown_metric` alone answers roughly forty questions - six metrics against seven dimensions - from one registration. Forty named tools would answer the same questions and make the agent worse at choosing among them.
+Chrome's guidance is explicit that each registered tool consumes context and that overlapping tools make selection worse. So capability scales through **arguments, not registrations**: `breakdown_metric` alone answers roughly forty questions - six metrics against eight dimensions - from one registration. Forty named tools would answer the same questions and make the agent worse at choosing among them.
 
 Registration follows page state, the pattern the spec already uses for login and logout. Nothing is gated by identity; tools appear when they become **relevant**, keeping the visible surface at nine to thirteen while the answerable space stays large.
 
@@ -174,10 +196,11 @@ Registration follows page state, the pattern the spec already uses for login and
 
 ```ts
 return { content: [{ type: "text", text:
-  "Drafted 4 of 5 sections. The Europe section is BLOCKED: the data " +
-  "behind net_revenue for this period failed a completeness check, so " +
-  "the 38% decline is not trustworthy. Use explain_data_issue to tell " +
-  "the user why, then publish without it or wait for a reload."
+  "Drafted 5 of 6 sections. The Europe section is BLOCKED: all 3,043 " +
+  "order lines behind net_revenue for this period lost their exchange " +
+  "rate, so there is no figure to publish. Online is DEGRADED, a quarter " +
+  "of its lines went the same way. Use explain_data_issue to tell the " +
+  "user why, then publish without Europe or wait for a reload."
 }]};
 ```
 
@@ -190,24 +213,75 @@ Mark every read-only tool `readOnlyHint: true`. Register only from your own modu
 {
   id: "net_revenue",
   label: "Net Revenue",
-  description: "Gross sales less returns and discounts, converted to USD.",
+  description: "What customers paid, after discounts, converted to US dollars.",
   unit: "currency",
   sql: "SUM(net_amount_usd)",
   grain: "gold.fact_sales_daily",
-  dimensions: ["date","category","subcategory","store","country","channel"],
+  dimensions: ["date","country","channel","category",
+               "subcategory","brand","store","currency"],
+  exclusions: [
+    "Order lines whose currency had no exchange rate for the order date. " +
+    "They are removed in silver rather than counted as zero."
+  ],
+  definitionVersion: "1.0.0",
   lineage: {
     upstream: ["bronze.orders","bronze.orderrows",
                "bronze.currencyexchange","silver.fct_order_lines"],
     transforms: [
-      "join orders → orderrows on order_id",
-      "net_amount = quantity * unit_price * (1 - discount)",
-      "convert to USD via currencyexchange (rate lookup by date+currency)"
+      "join orders to orderrows on OrderKey",
+      "net_amount = Quantity * NetPrice (the discount is already inside NetPrice)",
+      "convert to USD via currencyexchange, matched on " +
+      "FromCurrency = CurrencyCode, ToCurrency = 'USD', and the order date"
     ],
     owner: "data-platform",
     freshness: "daily 04:00 UTC"
   }
 }
 ```
+
+Three things in there are not what a first guess produces, and each was measured
+against the source before it was written down.
+
+- **There is no discount column.** `orderrows` carries `Quantity`, `UnitPrice`,
+  `NetPrice` and `UnitCost`, and the discount already sits inside `NetPrice`.
+  `Quantity * NetPrice` is the whole expression.
+- **The rate direction is backwards from the obvious guess.** Contoso's own
+  `sales.ExchangeRate` is USD to local, so converting *to* USD means joining on
+  `FromCurrency = CurrencyCode, ToCurrency = 'USD'`. The reverse produces wrong
+  numbers rather than an error.
+- **Column names are PascalCase and the order date is `orders.DT`.** Not
+  `OrderDate`, not snake_case. The gold tables the registry points at are ours
+  and are snake_case; the bronze side is not.
+
+Two grains, because `order_count` cannot live on the sales fact. One order spans
+several products, so `gold.fact_orders_daily` exists alongside
+`gold.fact_sales_daily` and carries a narrower dimension list. That is exactly
+what `describe_metric` reports, and why the two cannot be compared silently.
+
+**Channel is derived, not read.** No channel column exists anywhere in the eight
+Contoso tables. The only honest proxy is the single online store,
+`store.CountryCode = '--'`, against every physical store, and silver computes it
+there so the registry can advertise the dimension without lying about where it
+came from.
+
+### The public surface
+
+SuperWeb has two faces on one origin. Signed out, a visitor gets the Kestrel
+product catalogue and their agent gets a small public tool set: browse, search,
+open a product. Signing in switches the shell to the internal dashboard and
+replaces the public tools with the full set above.
+
+That switch is an argument no hosted MCP server can make. One origin serves two
+different tool surfaces decided by session, where a server would need two
+endpoints and two sets of credentials to do the same thing.
+
+Be exact about what this is not. Tool registration happens in the browser, so
+the split is **not a security boundary** - anyone with devtools open can call
+the internal setter and register the internal tools. The real boundary is server
+side, in `api/_lib/session.ts`, which decides the depth of every answer. That is
+the same framing as §6: identity, not security. `/api/lineage` never refuses a
+non-technical user, it answers in plain language instead of stage ladders, and
+it answers an anonymous visitor at catalogue depth for the same reason.
 
 ---
 
@@ -217,7 +291,7 @@ Mark every read-only tool `readOnlyHint: true`. Register only from your own modu
 
 ```ts
 draft_report({
-  period: "2024-11",
+  period: "2023-11",
   focus_metric: "net_revenue",
   sections: [{ heading, metric, dimension, commentary }, …]
 })
@@ -233,8 +307,7 @@ draft_report({
 
 A verdict ranges over **metric + period + filter**, never metric + period alone.
 The FX gap hits Europe; North America is sound. A verdict that could not see the
-filter would block four good sections to protect one, and the demo is four
-published and one blocked.
+filter would block four good sections to protect one.
 
 | Verdict | Meaning | Renders as |
 |---|---|---|
@@ -242,9 +315,38 @@ published and one blocked.
 | `degraded` | Something is off but the number stands | The number, with a noted gap |
 | `blocked` | The number has not earned publication | BLOCKED, never a number |
 
-`degraded` is frozen into the contract now and its rendering is decided later,
-once there is a page to look at. Three values cost nothing if only two get used;
-widening from two would touch every tool, the API and the renderer.
+### What the planted defect actually produces
+
+Measured against the source for `2023-11`, with sections scoped by
+`store.CountryCode`:
+
+| Section | Order lines | Unmatched | Verdict |
+|---|---|---|---|
+| Europe - DE, FR, IT, NL stores | 3,043 | 3,043 · 100.00% | `blocked` |
+| Online | 18,831 | 4,788 · 25.43% | `degraded` |
+| United States | 5,743 | 0 · 0.00% | `ok` |
+| Canada | 1,511 | 0 · 0.00% | `ok` |
+| United Kingdom | 1,082 | 0 · 0.00% | `ok` |
+| Australia | 874 | 0 · 0.00% | `ok` |
+
+Month-wide that is 7,831 unmatched lines of 31,084, or 25.19%.
+
+This is better than the plan originally asked for. Four sections publish, one
+blocks, **and** one is genuinely degraded, so all three verdicts get exercised
+by real data instead of `degraded` sitting frozen into the contract and never
+rendering. Its rendering is no longer a decision to defer.
+
+**Scope sections by `store.CountryCode`, not `customer.Continent`.** Continent
+puts Great Britain in Europe, which mixes clean GBP revenue into the broken EUR
+slice and turns a clean 100% block into an ambiguous 75%. It also collapses six
+sections into three. The UK is its own section.
+
+**Handle Online deliberately.** It is 18,831 of the month's 31,084 lines, so it
+can neither be ignored nor blocked wholesale without killing the biggest number
+on the page. Render it as the degraded section, which is the honest verdict and
+the one that justifies the three-value contract, or drop it from the report's
+section list and show it only on the dashboard. If it silently folds into a
+country section the "four clean" claim stops being true.
 
 That inversion is the project. The check doesn't live in a dashboard nobody reads, or an engineer's head, or a Slack thread three weeks later. It lives in the moment the number would have been written down.
 
@@ -275,6 +377,7 @@ What it buys:
 - **The agent acts in the user's session** - one of WebMCP's actual design rationales, currently undemonstrated.
 - **The server decides the depth of the answer.** `/api/lineage` never *blocks* a non-technical user - that would contradict the whole thesis. It returns the same fact at the depth that fits who's asking: plain language for Maya in Ops, the full stage ladder and rejected-row counts for someone in data.
 - **The report gets an author.** *"Prepared by Maya Okonkwo · Kestrel Supply Co."* in the `.pptx` footer. Tiny detail, disproportionate realism.
+- **The anonymous visitor is a real audience, not a rejection.** `public` is a depth like the others. The catalogue answers at catalogue depth and never returns an error for not being signed in. See §4.
 
 Keep both `explain_data_issue` and `trace_lineage` as separate tools - the agent should still be able to ask for the technical version explicitly. Identity adjusts the *default depth* of the response, not which tools exist.
 
@@ -284,11 +387,11 @@ Keep both `explain_data_issue` and `trace_lineage` as separate tools - the agent
 
 | Time | | |
 |---|---|---|
-| **0:00** | *"Draft me a revenue report for the exec review."* | `start_report` → panel opens → **tool count jumps 9 → 11 on screen** → `draft_report` |
-| **0:40** | Four sections fill in. The fifth comes back **blocked**. | *"I can't publish the Europe numbers - the data behind them is incomplete for this period, so the 38% decline isn't real."* **Tool count jumps again** as diagnostics register |
-| **1:20** | *"What do you mean, incomplete?"* | `explain_data_issue` - plain language, no jargon. Publishes the other four with the gap flagged |
+| **0:00** | *"Draft me the November revenue report for the exec review."* | Period `2023-11`. `start_report` → panel opens → **tool count jumps 9 → 11 on screen** → `draft_report` |
+| **0:40** | Five sections fill in. Europe comes back **blocked**, Online comes back **degraded**. | *"I can't publish Europe - every order line behind it is missing its exchange rate for this month. Online is short about a quarter of its lines for the same reason, so its total is understated."* **Tool count jumps again** as diagnostics register |
+| **1:20** | *"What do you mean, missing?"* | `explain_data_issue` - plain language, no jargon. Publishes the other five with the Online gap flagged |
 | **2:00** | *"Make it a deck."* | `build_deck` → a real `.pptx` lands in downloads, the blocked section carried as a flag rather than a number |
-| **2:30** | Same question, technical depth | `trace_lineage` → the stage ladder, and 4,182,901 in · 4,061,388 out · **121,513 rejected** at the FX join |
+| **2:30** | Same question, technical depth | `trace_lineage` → the stage ladder, and 31,084 in · 23,253 out · **7,831 rejected** at the FX join |
 | **2:45** | *"Nobody had to notice. That's the point."* | Open the video on the same line inverted |
 
 **Opening line:** *Every week, someone pastes a dashboard number into a deck, and nobody checks whether it was real.*
@@ -302,19 +405,74 @@ is ordered by what blocks what, so anything whose blockers are done can be
 picked up. The two of you alternate in practice, but nothing here requires you
 to be at the keyboard at the same time.
 
-### Gate 0 · before any code is written
+### Gate 0 · PASSED, 2026-08-29
 
-Two checks, twenty minutes each. Everything downstream assumes both passed, and
-both are cheap to run and expensive to discover late.
+Two checks, twenty minutes each. Both ran and both passed, check 1 with a
+correction to the API name and check 2 with a change to how the defect gets
+made. Everything downstream assumes them.
 
-- **Does `navigator.modelContext` respond?** One static HTML page, one hardcoded
-  tool, one agent turn. If this fails, the project is not buildable in its
-  current shape and you need the morning to find out, not the evening.
-- **Does Contoso carry non-USD orders with FX rate gaps?** The demo defect has
-  no home without it. If the 1M tier is single-currency, move the failure to the
-  store or product dimension join. Same story shape, same tool surface.
+- **Does `document.modelContext` respond?** Yes. A tool was registered, listed
+  and executed end to end in Chrome 152. The API is on `document`, not
+  `navigator`, and `navigator.modelContext` is `undefined` in that build.
+- **Does Contoso carry non-USD orders with FX rate gaps?** Non-USD orders, yes,
+  47.84% of them. Gaps, no. Coverage is a complete 25-pair by 3,653-day cross
+  product with no holes, and all 2,098,633 order lines match. The defect is
+  planted instead, in bronze, by deleting 30 rate rows. See §5 and ADR 0003.
 
-> **Gate:** you have seen a tool answer, and you know the FX story is buildable.
+One part of check 1 is still open. **No AI agent has invoked a registered tool
+through a real agent turn yet.** The page-side half is settled - late
+registration works, the tool appears in `getTools()` immediately, `toolchange`
+fires - but whether an agent re-reads the tool list within one turn is
+undocumented in the spec, and the event obliges nobody to act on it. The §9
+fallback stays live: register the report tools when the panel opens via UI.
+
+> **Gate:** a tool answered, and the FX story is buildable.
+
+#### The API, as measured
+
+Four members on an `EventTarget`: `registerTool`, `getTools`, `executeTool`, and
+an `ontoolchange` event. There is no `provideContext` and no `unregisterTool` -
+unregistration works by passing an `AbortSignal` to `registerTool` and aborting
+it.
+
+```js
+const controller = new AbortController();
+
+await document.modelContext.registerTool({
+  name: "get_metric",
+  title: "Get metric",                    // top level, NOT inside annotations
+  description: "Read one metric for one period from the dashboard.",
+  inputSchema: { type: "object", properties: { … }, required: [ … ] },
+  annotations: { readOnlyHint: true },
+  async execute({ metric, period }, { signal }) {
+    // Drive the UI here. The UI calls /api/*. Never query data from the tool.
+    return { content: [{ type: "text", text: "…" }] };
+  }
+}, { signal: controller.signal });        // controller.abort() unregisters
+```
+
+Five details the tool track will hit, all measured rather than assumed:
+
+- **`title` is a top level field.** Nest it under `annotations` and the browser
+  drops it silently, with no error and an empty `title` on read-back.
+- **`annotations` normalizes to exactly `{readOnlyHint, untrustedContentHint}`.**
+  Any other key is discarded.
+- **`getTools()` returns `inputSchema` as a JSON string**, not the object that
+  went in.
+- **`executeTool` takes the tool record itself, not a name**, plus a JSON string
+  of arguments, and returns a JSON string. Passing a name throws, and passing
+  `{}` instead of `"{}"` throws.
+- **The `execute` callback receives parsed arguments**, not a string. Only the
+  outer `executeTool` boundary deals in JSON text.
+
+#### The deployment caveat
+
+The probe page carried no origin-trial token and worked anyway, which means this
+Chrome has the feature switched on by flag. **A judge's browser will not.** The
+origin trial still matters for the deployed URL, and the token binds to the
+origin, so the Vercel URL has to be claimed before the `<meta http-equiv=
+"origin-trial">` tag in `index.html` can be filled in. Claim the URL first, then
+register, then never rename the project.
 
 ### Gate 1 · the contract
 
@@ -329,8 +487,8 @@ Blocks everything on both tracks, so it happens first and it happens once.
 
 Ownership maps to folders and does not move. See §3 rule 2.
 
-**Data track** owns `etl/`, `data/`, `api/`, `src/ui/`, `src/auth/`.
-Python, DuckDB, SQL and DOM work.
+**Data track** owns `etl/`, `data/`, `api/`, `src/ui/`, `src/auth/` and the
+React shell. Python, DuckDB, SQL and component work.
 
 1. ETL bronze to silver to gold, plus `data/meta/*.json` written on every run
 2. `/api/query` and `/api/trust` reading the registry
@@ -342,7 +500,7 @@ Python, DuckDB, SQL and DOM work.
 **Tool track** owns `src/mcp/` entirely. Thirteen schemas and a tuning pass.
 Whoever is more comfortable in TypeScript takes this half.
 
-1. Registration layer and the `modelContext` adapter
+1. Registration layer and the `document.modelContext` adapter
 2. The always-on read tools, in the rank order below
 3. Tool-visibility panel
 4. Context registration: tools appearing when the report opens and after a
@@ -394,10 +552,10 @@ regression risk against a demo that already works.
 
 | | Risk | Response |
 |---|---|---|
-| **HIGH** | **`navigator.modelContext` may not respond at all** in the browser you have. Nothing else in this plan survives it | Gate 0. Twenty minutes, before any code. One static page, one hardcoded tool |
-| **HIGH** | **The FX story needs non-USD orders in Contoso.** If the 1M tier is single-currency the demo defect has no home | Gate 0. Fallback: move the failure to the store or product dimension join, same story shape |
-| **HIGH** | **Mid-turn tool registration is undocumented.** The spec doesn't say whether the agent sees newly registered tools in the same turn | Test it during Gate 0 while the static page is already open. If it fails, register the report tools when the panel opens via UI instead |
-| **HIGH** | **Origin-trial token bound to the wrong origin** | Claim the URL before the build day; never rename the project |
+| ~~HIGH~~ | ~~**`navigator.modelContext` may not respond at all**~~ | **Retired at Gate 0.** `document.modelContext` responds and a full round trip completed in Chrome 152 |
+| ~~HIGH~~ | ~~**The FX story needs non-USD orders in Contoso**~~ | **Retired at Gate 0.** Non-USD is 47.84% of orders. Coverage is complete, so the gap is planted rather than found. See ADR 0003 |
+| **HIGH** | **Mid-turn tool registration is undocumented.** The spec doesn't say whether the agent sees newly registered tools in the same turn | Still open. Page-side is settled - `toolchange` fires and `getTools()` updates - but agent-side same-turn visibility is documented nowhere. If it fails, register the report tools when the panel opens via UI instead |
+| **HIGH** | **Origin-trial token bound to the wrong origin.** The dev machine has the feature on by flag and hides this entirely | Claim the URL before the build day; never rename the project. Test in a browser with no flag set |
 | **HIGH** | **One build day means no second attempt.** A track that stalls has no later day to absorb it | The tool rank in §8. Stop building down the list the moment the demo arc runs end to end |
 | MED | **Wrong tool selection**, the most common way a WebMCP demo dies | Thirteen tools is enough for confusion. Descriptions are prompts: tune against real transcripts, not by reasoning about them |
 | MED | **`.pptx` download blocked in the in-app browser** | `build_deck` is rank 12 and already stretch. Fallback: render in-page, offer the file in Chrome only |
@@ -410,21 +568,27 @@ The tool rank in §8 handles the tool half. This is everything else:
 
 1. Identity switcher, hardcode one user and keep the session plumbing
 2. Lineage ladder becomes a flat list
-3. Store and channel dimensions
+3. Store, brand and currency dimensions
 4. Any chart past the trend line
+
+Channel has moved off this list. It is the online store, the online store is
+the degraded section, and the degraded section is a third of the demo.
 
 ---
 
 ## 10. Gate 0 checklist, and the licensing position
 
-- [ ] **Does Contoso carry a currency code on orders, with non-USD rows?** The entire demo defect hangs on this. If not, plant the failure at the store or product dimension join instead.
-- [ ] **What date range does the 1M tier actually cover?** Undocumented in the release. It decides your demo month and every period comparison.
-- [ ] **Confirm the real column names** in the Orders / OrderRows variant before `shared/types.ts` is written on Friday.
-- [ ] **Origin-trial token registered** against the final deploy URL.
+Answered 2026-08-29. Kept rather than deleted, because the record of what was
+checked is worth more than a tidy list.
+
+- [x] **Does Contoso carry a currency code on orders, with non-USD rows?** Yes. `orders.CurrencyCode`, five values, non-USD is 47.84% of orders.
+- [x] **What date range does the 1M tier actually cover?** `orders.DT` runs 2015-01-01 to 2024-04-20. The tail thins first, so nothing after 2024-01 is usable. Demo period is `2023-11`.
+- [x] **Confirm the real column names** in the Orders / OrderRows variant. PascalCase throughout, and the order date is `orders.DT`. `orderrows` carries `Quantity`, `UnitPrice`, `NetPrice`, `UnitCost` and no discount column. See §4 and `etl/README.md`.
+- [ ] **Origin-trial token registered** against the final deploy URL. Still open, and the only one. See §8.
 
 **On naming and licences.** Nothing is owed to anyone: the SQLBI data repo is MIT, free for any use including commercial. Contoso exists precisely to be the fictional company in demos, so using the name carries no risk - just don't use Microsoft logos or imply their involvement. Rename the company anyway, for product reasons: a UI that says "Contoso" reads as a tutorial built on sample data; one that says **Kestrel Supply Co.** reads as a product seeded with sample data.
 
-All dependency licences clear for the "original work" requirement: Contoso data MIT, DuckDB MIT, PptxGenJS MIT, Observable Plot ISC.
+All dependency licences clear for the "original work" requirement: Contoso data MIT, DuckDB MIT, PptxGenJS MIT, Recharts MIT, shadcn/ui MIT. The dashboard shell is adapted from `satnaing/shadcn-admin`, MIT, whose licence is retained verbatim at `vendor/shadcn-admin/LICENSE`.
 
 ---
 

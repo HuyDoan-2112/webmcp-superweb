@@ -18,6 +18,23 @@ The fictional company whose data the dashboard shows. Fictional so the UI reads
 as a product seeded with sample data rather than a tutorial built on it.
 _Avoid_: Contoso (that is the upstream dataset, not the company we depict)
 
+**Public surface**:
+What an anonymous, signed-out visitor sees: the Kestrel product catalogue, with
+a small tool set their agent can use to browse it. It is a face of the same
+origin, not a separate site.
+_Avoid_: landing page, marketing site, guest mode
+
+**Internal surface**:
+What a signed-in person sees: the dashboard and the full tool set. Signing in
+switches surfaces, which swaps one set of registered tools for the other.
+
+The switch is **not a security boundary**. Registration happens in the browser,
+so anyone with devtools can call the internal setter. The boundary is server
+side, where the session decides the depth of an answer. Say "surface" when you
+mean which tools are registered, and "audience" when you mean how deep the
+answer goes.
+_Avoid_: private area, admin, authenticated app, logged-in mode
+
 ### Numbers
 
 **Metric**:
@@ -26,7 +43,9 @@ read by both the server and the tool schemas.
 _Avoid_: KPI, measure
 
 **Dimension**:
-An axis a metric can be split along. Category, store, country, channel.
+An axis a metric can be split along. Category, store, country, channel. Channel
+is derived rather than read: Contoso has no channel column, so the single store
+with country code `--` is the online channel and everything else is in store.
 _Avoid_: breakdown, facet, group-by
 
 **Grain**:
@@ -66,6 +85,16 @@ in a local currency into USD, looked up by currency and by the date of the
 order. Rates change daily, so the lookup needs both.
 _Avoid_: exchange rate, conversion rate, forex
 
+**Local currency**:
+The currency an order was placed in, and the denomination we treat its amounts
+as. The Contoso source stores amounts that are already USD-denominated and uses
+`CurrencyCode` only to record what the customer paid in. Silver declares those
+amounts local and converts them through the FX join anyway, so that a missing
+rate drops the line instead of quietly doing nothing. The data is synthetic and
+the company is fictional, so there is no ground truth this contradicts.
+_Avoid_: "orders priced in non-USD currencies" (the source does not literally
+say that), native currency, original currency
+
 **Rejected row**:
 An order line that fell out of the pipeline because a lookup it needed found
 nothing, most often a missing FX rate. It does not become zero and it does not
@@ -83,10 +112,20 @@ _Avoid_: coverage, data quality
 
 **Audience**:
 The depth of answer a person should receive, carried by the demo session.
-It changes how much detail an answer contains, never whether they may ask.
+It changes how much detail an answer contains, never whether they may ask. The
+anonymous visitor is an audience like any other and gets catalogue depth, never
+a refusal.
 _Avoid_: role, permission, access level
 
 **Blocked section**:
 A report section rendered without its number, because the data behind it did
 not earn the right to be published. The blocked section is the demo.
 _Avoid_: error, failure, missing section
+
+**Degraded section**:
+A report section that keeps its number and carries the gap alongside it, because
+some of its rows were rejected but enough survived to say something true. The
+online channel is the one in the demo period, a quarter short and reading as
+entirely ordinary. It is the more dangerous of the two states, because a blocked
+section cannot be pasted into a deck and this one can.
+_Avoid_: partial, warning, incomplete section
