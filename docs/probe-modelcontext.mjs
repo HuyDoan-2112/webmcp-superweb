@@ -23,6 +23,11 @@ const arg = (n, d) => process.argv.find(a => a.startsWith(`--${n}=`))?.split("="
 
 const URL_UNDER_TEST = arg("url", "http://localhost:5173/");
 const PORT = Number(arg("port", "9333"));
+// --flag=off drops --enable-features=WebMCP, so the page must earn WebMCP from
+// its own origin trial token. That is what a judge's browser does, and it is
+// the only way to catch a token Chrome rejects. A third-party token reports
+// "WrongOrigin" even when the origin matches exactly.
+const FLAG = arg("flag", "on") !== "off";
 const CHROME = arg("chrome", process.platform === "win32"
   ? "C:/Program Files/Google/Chrome/Application/chrome.exe"
   : process.platform === "darwin"
@@ -35,7 +40,7 @@ const profile = mkdtempSync(join(tmpdir(), "webmcp-probe-"));
 const chrome = spawn(CHROME, [
   "--headless=new",
   "--disable-gpu",
-  "--enable-features=WebMCP",
+  ...(FLAG ? ["--enable-features=WebMCP"] : []),
   `--remote-debugging-port=${PORT}`,
   `--user-data-dir=${profile}`,
   URL_UNDER_TEST,
@@ -78,7 +83,29 @@ async function evaluate(expression) {
 }
 
 await send("Runtime.enable");
+await send("Page.enable");
 await sleep(3000);
+
+console.log("-- origin trial ----------------------------------------------");
+console.log("chrome flag      :", FLAG ? "--enable-features=WebMCP (pass --flag=off to test the token alone)" : "off, so the token has to carry it");
+try {
+  const tree = await send("Page.getFrameTree");
+  const trials = await send("Page.getOriginTrials", { frameId: tree.result.frameTree.frame.id });
+  const trial = trials.result?.originTrials?.find(t => t.trialName === "WebMCP");
+  if (!trial) console.log("WebMCP trial     : no token on this page");
+  else {
+    console.log("WebMCP trial     :", trial.status);
+    for (const t of trial.tokensWithStatus) {
+      console.log("  token status   :", t.status, t.status === "WrongOrigin" && t.parsedToken?.isThirdParty
+        ? "<- third-party token served first-party. Re-register without third-party matching."
+        : "");
+      console.log("  parsed         :", JSON.stringify(t.parsedToken));
+    }
+  }
+} catch (e) {
+  console.log("WebMCP trial     : could not read (", e.message, ")");
+}
+console.log("");
 
 const NAMES = `document.modelContext.getTools().then(ts => ts.map(t => t.name).sort())`;
 
