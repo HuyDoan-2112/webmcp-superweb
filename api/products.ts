@@ -23,9 +23,9 @@
 // "families available in Blue" mean what a buyer expects, while still showing
 // the whole colour range on the card once it is found.
 
-import type { Product } from "../shared/types";
-import { query } from "./_lib/duckdb";
-import { json, params } from "./_lib/http";
+import type { Product } from "../shared/types.js";
+import { query } from "./_lib/duckdb.js";
+import { json, params } from "./_lib/http.js";
 
 const COLUMNS = `
   product_key       AS productKey,

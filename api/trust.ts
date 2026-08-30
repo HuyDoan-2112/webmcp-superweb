@@ -4,13 +4,13 @@
 // on who is asking. Nobody is refused. Someone in Operations gets the sentence
 // they can act on; someone in Data gets the check name and the row counts.
 
-import { getMetric } from "../shared/metrics";
-import type { TrustReport } from "../shared/types";
-import { isMetricId, parseFilters } from "./_lib/compose";
-import { fail, json, params } from "./_lib/http";
-import { getSession, wantsTechnicalDetail } from "./_lib/session";
-import { checksFor, verdictFor } from "./_lib/trust";
-import { latestRun } from "./_lib/runs";
+import { getMetric } from "../shared/metrics.js";
+import type { TrustReport } from "../shared/types.js";
+import { isMetricId, parseFilters } from "./_lib/compose.js";
+import { fail, json, params } from "./_lib/http.js";
+import { getSession, wantsTechnicalDetail } from "./_lib/session.js";
+import { checksFor, verdictFor } from "./_lib/trust.js";
+import { latestRun } from "./_lib/runs.js";
 
 export default async function handler(request: Request): Promise<Response> {
   const p = params(request);

@@ -1,6 +1,6 @@
 import { readFile } from "node:fs/promises";
-import type { PipelineRun } from "../../shared/types";
-import { dataPath } from "./duckdb";
+import type { PipelineRun } from "../../shared/types.js";
+import { dataPath } from "./duckdb.js";
 
 let cached: Promise<PipelineRun[]> | null = null;
 

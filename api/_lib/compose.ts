@@ -4,13 +4,13 @@
 // Nothing in this file hardcodes a metric, which is the property that stops the
 // server and the tool schemas drifting apart.
 
-import { getMetric, supportsDimension } from "../../shared/metrics";
+import { getMetric, supportsDimension } from "../../shared/metrics.js";
 import type {
   DimensionId,
   Filters,
   MetricId,
   MetricQuery,
-} from "../../shared/types";
+} from "../../shared/types.js";
 
 /**
  * How each dimension is reached from a fact row. `f` is the fact, `s` is

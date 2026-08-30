@@ -6,8 +6,8 @@
 // because the rows that would prove it are the ones that are missing.
 
 import { readFile } from "node:fs/promises";
-import type { Check, Filters, MetricId, TrustVerdict } from "../../shared/types";
-import { dataPath } from "./duckdb";
+import type { Check, Filters, MetricId, TrustVerdict } from "../../shared/types.js";
+import { dataPath } from "./duckdb.js";
 
 type StoredCheck = Check & {
   metric: MetricId;

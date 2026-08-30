@@ -4,7 +4,7 @@
 // refuses anyone. It decides the depth of an answer, never whether a question
 // may be asked. See docs/PLAN.md section 6.
 
-import type { Audience, Session, User } from "../../shared/types";
+import type { Audience, Session, User } from "../../shared/types.js";
 
 /** The seeded people at Kestrel Supply Co. */
 export const USERS: User[] = [

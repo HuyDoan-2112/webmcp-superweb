@@ -3,18 +3,18 @@
 // The only endpoint that aggregates. Every column it touches comes from the
 // registry through compose.ts.
 
-import { getMetric } from "../shared/metrics";
-import type { MetricQuery, Row } from "../shared/types";
+import { getMetric } from "../shared/metrics.js";
+import type { MetricQuery, Row } from "../shared/types.js";
 import {
   composeQuery,
   isMetricId,
   parseFilters,
   previousPeriod,
   QueryError,
-} from "./_lib/compose";
-import { query } from "./_lib/duckdb";
-import { fail, json, params } from "./_lib/http";
-import { verdictFor } from "./_lib/trust";
+} from "./_lib/compose.js";
+import { query } from "./_lib/duckdb.js";
+import { fail, json, params } from "./_lib/http.js";
+import { verdictFor } from "./_lib/trust.js";
 
 export default async function handler(request: Request): Promise<Response> {
   const p = params(request);

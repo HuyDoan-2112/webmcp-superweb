@@ -6,10 +6,10 @@
 // language. Data gets the table names and the row counts.
 
 import { readFile } from "node:fs/promises";
-import type { Lineage } from "../shared/types";
-import { dataPath } from "./_lib/duckdb";
-import { json } from "./_lib/http";
-import { getSession, wantsTechnicalDetail } from "./_lib/session";
+import type { Lineage } from "../shared/types.js";
+import { dataPath } from "./_lib/duckdb.js";
+import { json } from "./_lib/http.js";
+import { getSession, wantsTechnicalDetail } from "./_lib/session.js";
 
 let cached: Promise<Lineage> | null = null;
 
