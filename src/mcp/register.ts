@@ -30,7 +30,7 @@
 
 import { METRIC_IDS } from "@shared/metrics";
 import { getState, setState, subscribe } from "@/store";
-import { ToolGroup, isSupported } from "./adapter";
+import { ToolGroup, isSupported, whenSupported } from "./adapter";
 import { mountPanel } from "./panel";
 import { publicTools } from "./tools/catalog";
 import { promotionTools } from "./tools/promotions";
@@ -103,13 +103,30 @@ export function startModelContext(): void {
   mountPanel();
 
   if (!isSupported()) {
-    console.warn(
-      "[superweb] document.modelContext is absent, so no WebMCP tools were " +
-        "registered. The dashboard works normally. Chrome 149 or later is " +
-        "needed, with the origin trial or chrome://flags/#enable-webmcp-testing.",
-    );
+    // Not a refusal, a wait. Chrome has the API before we run; a host that
+    // injects it later would otherwise be told, permanently and silently, that
+    // this page offers nothing. Registration picks up when it lands.
+    void whenSupported().then((arrived) => {
+      if (!arrived) {
+        console.warn(
+          "[superweb] document.modelContext never appeared, so no WebMCP " +
+            "tools were registered. The dashboard works normally. Chrome 149 " +
+            "or later is needed, with the origin trial or " +
+            "chrome://flags/#enable-webmcp-testing.",
+        );
+        return;
+      }
+      console.info("[superweb] document.modelContext appeared late; registering now.");
+      begin();
+    });
     return;
   }
+
+  begin();
+}
+
+/** Subscribe and reconcile. Split out so a late-arriving API can call it too. */
+function begin(): void {
 
   // The registry is loaded, which is the precondition for registration.
   // Recorded on the store so the UI can say so without importing this module.

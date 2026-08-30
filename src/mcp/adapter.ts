@@ -52,6 +52,35 @@ export function isSupported(): boolean {
 }
 
 /**
+ * Wait for the API to appear, rather than deciding at first paint that it never
+ * will.
+ *
+ * Chrome exposes `document.modelContext` before our code runs, so a single
+ * check works there. Other hosts do not: an embedded browser can inject the
+ * object after the page has loaded, and a one-shot check turns that into a
+ * permanent "no tools on this page" with nothing on screen explaining why. The
+ * cost of being wrong in that direction is the whole feature, so poll.
+ *
+ * Resolves immediately when the API is already there, and gives up after the
+ * deadline so a browser that genuinely lacks it still gets the honest panel.
+ */
+export function whenSupported(timeoutMs = 15_000): Promise<boolean> {
+  if (isSupported()) return Promise.resolve(true);
+  return new Promise((resolve) => {
+    const started = Date.now();
+    const timer = setInterval(() => {
+      if (isSupported()) {
+        clearInterval(timer);
+        resolve(true);
+      } else if (Date.now() - started > timeoutMs) {
+        clearInterval(timer);
+        resolve(false);
+      }
+    }, 250);
+  });
+}
+
+/**
  * Trim a thrown value into one line an agent can act on.
  *
  * Never re-throws. A tool that throws mid turn gives the agent an opaque
@@ -114,7 +143,18 @@ export class ToolGroup {
     if (!mc) return;
     const controller = new AbortController();
     this.controller = controller;
-    const specs = await this.build();
+
+    // A build that throws must not take the registration with it. The public
+    // group probes /api/products for its facet enums, and a probe that fails
+    // should cost the agent real enums, not every tool on the page.
+    let specs: ToolSpec[];
+    try {
+      specs = await this.build();
+    } catch (error) {
+      console.error(`[superweb] building tool group "${this.id}" failed`, error);
+      this.controller = null;
+      return;
+    }
     // A close() while the build was in flight wins. Registering afterwards
     // would attach tools to a controller nobody is holding any more.
     if (this.controller !== controller) return;

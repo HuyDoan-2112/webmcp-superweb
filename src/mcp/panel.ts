@@ -208,4 +208,20 @@ export function mountPanel(): void {
   onToolChange(() => {
     void render(root);
   });
+
+  // A host that injects document.modelContext after load would otherwise leave
+  // the panel stuck on "this browser has no modelContext" while tools register
+  // behind it, which is the most misleading thing this panel could say.
+  // onToolChange cannot cover it: with no API there is nothing to subscribe to.
+  if (!getModelContext()) {
+    const timer = setInterval(() => {
+      if (!getModelContext()) return;
+      clearInterval(timer);
+      void render(root);
+      onToolChange(() => {
+        void render(root);
+      });
+    }, 250);
+    setTimeout(() => clearInterval(timer), 20_000);
+  }
 }
