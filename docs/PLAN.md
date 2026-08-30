@@ -31,9 +31,8 @@ to silver to gold, with the gold parquet and the run metadata committed. The
 read-only API over DuckDB in `api/`. Both surfaces built and pointed at real
 endpoints, the public catalogue and the dashboard alike. The tool layer in
 `src/mcp/`, imperative tools plus the declarative search form, with the
-visibility panel and the context registration rules. Nine commits of it are on
-the remote, on top of the two scaffold commits, with the catalogue tool rework
-still uncommitted in the working tree.
+visibility panel and the context registration rules. Eleven commits are on the
+remote and the working tree is clean.
 
 **Not done.** These are what is left before the deadline, in the order they will
 hurt.
@@ -162,7 +161,9 @@ Four groups with four lifetimes, all of them declared in `src/mcp/register.ts`,
 their tools written in `src/mcp/tools/`. The public catalogue registers five.
 Signing in swaps those for seven. Opening the report registers two more, and a
 check coming back failed registers the two diagnostic tools, so the count on
-screen runs 5 → 7 → 9 → 11 and drops back as the page moves. The public set is
+screen runs 6 → 7 → 9 → 11 and drops back as the page moves. Six, not five:
+`getTools()` counts the declarative form alongside the five imperative tools,
+and the panel reads `getTools()` straight through. The public set is
 swapped out rather than kept, because its tools drive a catalogue that is no
 longer on the screen, and a registered tool that cannot move the page is a tool
 the agent can pick by mistake.
@@ -187,6 +188,13 @@ become an enum, `min` becomes `minimum`, `type="number"` becomes a number, and a
 the real input and the real select, submits the form, runs the page's own submit
 handler, and returns through `SubmitEvent.respondWith`. Values arrive as strings,
 the same as any form submission, so a number field still needs parsing.
+
+Its lifetime is the form element's. Signing in unmounts the catalogue header
+and the browser drops the tool from `getTools()` unprompted, with no
+`AbortController` and none of the reconciler in `register.ts` involved. Measured
+across the switch on 2026-08-29: six tools before, seven after, the form gone.
+So the swap-don't-keep rule holds even for the one tool the reconciler cannot
+reach.
 
 This is the strongest thing in the project. The rule at the top of §2 is that a
 tool must take the same path a click takes, and with a declarative tool the
@@ -466,8 +474,16 @@ The tool rank in §8 handles the tool half. This is everything else:
 Channel has moved off this list. It is the online store, the online store is
 the degraded section, and the degraded section is a third of the demo.
 
-Nothing on the list was taken. The switcher, the stage ladder and all eight
-registry dimensions are built. It stays live for the days that are left, and it
+One was taken, and not deliberately. **The identity switcher is not built.**
+`src/auth/session.ts`, `src/auth/switcher.ts` and `src/auth/users.ts` are two
+comment lines each and no code; `nav-user.tsx` hardcodes `DEMO_USERS[0]` behind
+a note saying it is a placeholder. Nothing writes the `superweb_session` cookie
+that `api/_lib/session.ts` reads, so the audience mechanism is live on the
+server and unreachable from the page. The server half is real and answers
+correctly when the cookie is sent by hand.
+
+The rest of the list stands. The stage ladder and all eight registry
+dimensions are built. It stays live for the days that are left, and it
 is still cut from the top.
 
 ---

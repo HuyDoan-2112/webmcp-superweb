@@ -143,6 +143,11 @@ answers a non-technical user in plain language instead of stage ladders, and
 answers an anonymous visitor at catalogue depth. Identity here is depth, not
 access.
 
+That mechanism is server side and it works, but the UI cannot currently reach
+it. Nothing writes the `superweb_session` cookie, so every request arrives
+anonymous and every answer comes back at catalogue depth. The varying depths are
+reachable by sending the cookie by hand. See docs/PLAN.md section 9.
+
 ### What the catalogue does
 
 **885 products, not 2,517 rows.** Contoso ships one SKU per colourway, so a
@@ -243,8 +248,16 @@ WebMCP requires a browser that exposes `document.modelContext`: Chrome with the
 feature enabled, or ChatGPT's in-app browser. The interface is `registerTool`,
 `getTools` and `executeTool` on an event target that fires `toolchange`;
 unregistering means aborting the `AbortSignal` passed to `registerTool`.
-Measured in Chrome 152 on 2026-08-29. `navigator.modelContext` is undefined
-there, whatever older write-ups say.
+Measured on 2026-08-29. `navigator.modelContext` is not a dead spelling: it is
+the same object, and `document.modelContext === navigator.modelContext` returns
+true. `adapter.ts` reads `document` first regardless, so either spelling works.
+
+A declarative tool's lifetime is its element's. Signing in unmounts the
+catalogue search form and the browser drops `search_catalog_form` from
+`getTools()` on its own, with no `AbortController` and no code of ours. Measured
+across the surface switch: six tools before, seven after, the form gone. The
+imperative groups need a controller each; the declarative one needs nothing,
+which is the same argument as the schema, one layer down.
 
 ## Repository
 
