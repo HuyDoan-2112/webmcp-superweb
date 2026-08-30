@@ -22,17 +22,16 @@
 // and brand copy is a supplier's; promotion copy is ours.
 
 import { selectPromotion } from "@/store";
-import { findPromotion, isLive, readClaimOutcome, readPromotions } from "../api";
+import { readClaimOutcome } from "../api";
+import {
+  findPromotion,
+  hasEnded,
+  isLive,
+  readPromotions,
+  today,
+} from "@/promotions";
 import { text, type ToolSpec } from "../adapter";
 import type { Promotion } from "@shared/types";
-
-/** Today as YYYY-MM-DD, the same day the strip renders against. */
-function today(): string {
-  const now = new Date();
-  return new Date(now.getTime() - now.getTimezoneOffset() * 60_000)
-    .toISOString()
-    .slice(0, 10);
-}
 
 function asDay(value: unknown): string {
   return typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value)
@@ -161,8 +160,8 @@ function checkPromotion(codes: string[]): ToolSpec {
             `slice, which is not the same as evaluating it and finding it ` +
             `sound. Do not read silence as approval.\n\n` +
             `Say plainly that the claim is unverified rather than repeating ` +
-            `it. The slices that were evaluated are country and channel; a ` +
-            `claim about a product category has no verdict behind it at all.`,
+            `it. Other promotions do have verdicts behind them: list_promotions ` +
+            `and check_promotion will tell you which.`,
         );
       }
 
@@ -225,11 +224,39 @@ function planPromotionReminder(codes: string[]): ToolSpec {
         );
       }
 
+      // A window that has closed is not a window. Answering with a cadence
+      // anyway would hand the agent something to schedule against a promotion
+      // that is over.
+      if (hasEnded(promotion)) {
+        return text(
+          `${promotion.code} has already finished. It ran ` +
+            `${runsFor(promotion)}, so there is no window left to schedule ` +
+            `against.\n\nCall list_promotions for what is running now.`,
+        );
+      }
+
+      // The reminder outlives the conversation, so the claim's state has to
+      // travel with it. A scheduled nudge that repeats an unchecked figure on
+      // a day when nobody remembers this exchange is the failure this project
+      // exists to stop, moved into the future.
+      const { outcome } = await readClaimOutcome(promotion);
+      const claimWarning =
+        outcome === "ok"
+          ? ""
+          : outcome === "unchecked"
+            ? ` Nobody ever checked it, so whatever you schedule should not ` +
+              `repeat it as fact.`
+            : ` It came back ${outcome.toUpperCase()} against the pipeline, so ` +
+              `a reminder that repeats it carries that problem forward.`;
+
       const zone = Intl.DateTimeFormat().resolvedOptions().timeZone;
       const compact = (day: string) => day.replace(/-/g, "");
+      // UNTIL must be UTC when DTSTART carries a TZID (RFC 5545 3.3.10). A
+      // scheduler that rejects the rule for that is worse than no rule at all,
+      // and 23:59Z on the last day is never earlier than the local end of it.
       const rrule =
         `DTSTART;TZID=${zone}:${compact(promotion.validFrom)}T090000\n` +
-        `RRULE:FREQ=DAILY;UNTIL=${compact(promotion.validTo)}T235900`;
+        `RRULE:FREQ=DAILY;UNTIL=${compact(promotion.validTo)}T235900Z`;
 
       return text(
         `${promotion.code} runs ${runsFor(promotion)}.\n\n` +
@@ -238,13 +265,13 @@ function planPromotionReminder(codes: string[]): ToolSpec {
           `Absolute start: ${promotion.validFrom}T09:00:00 (${zone}).\n` +
           `RRULE:\n${rrule}\n\n` +
           `Nothing has been scheduled here. Setting a reminder is your own ` +
-          `capability, not this page's, and a scheduled run cannot call back ` +
-          `into these tools: they exist only while somebody has this page ` +
-          `open in front of them. So carry the answer with you rather than ` +
-          `planning to come back for it, and note that hourly is the finest ` +
-          `interval worth asking for.\n\n` +
-          `The claim behind this promotion is "${promotion.claim.assertion}". ` +
-          `Call check_promotion before you repeat it in any reminder you set.`,
+          `capability, not this page's. As things stand today a scheduled run ` +
+          `cannot call these tools back, because they exist only while ` +
+          `somebody has this page open, so carry the answer with you rather ` +
+          `than planning to come back for it. Hourly is the finest interval ` +
+          `worth asking for.\n\n` +
+          `The claim behind this promotion is ` +
+          `"${promotion.claim.assertion}".${claimWarning}`,
       );
     },
   };

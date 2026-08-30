@@ -6,7 +6,12 @@ import { useAsync } from "@/hooks/use-async";
 import { useStore } from "@/hooks/use-store";
 import { formatMetric } from "@/ui/format";
 import { clean } from "@/ui/tiles";
-import { CHART_MARGIN, chartBody, type ChartTheme } from "@/ui/chart-figure";
+import {
+  CHART_MARGIN,
+  chartBody,
+  formatAxis,
+  type ChartTheme,
+} from "@/ui/chart-figure";
 
 /**
  * The page's own theme values, passed into the shared drawing.
@@ -62,7 +67,7 @@ export function TrendChart() {
         ) : (
           <ResponsiveContainer width="100%" height="100%">
             <AreaChart data={series} margin={CHART_MARGIN}>
-              {chartBody(PAGE_THEME, (v: number) => formatMetric(v, unit))}
+              {chartBody(PAGE_THEME, (v: number) => formatAxis(v, unit))}
               <Tooltip
                 contentStyle={{
                   background: "var(--popover)",

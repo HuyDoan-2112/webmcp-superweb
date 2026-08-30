@@ -19,23 +19,13 @@ import { Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useStore } from "@/hooks/use-store";
 import { selectPromotion } from "@/store";
-import { isLive, readPromotions } from "@/mcp/api";
+import { isLive, readPromotions, today } from "@/promotions";
 
 const PROMOTIONS = readPromotions();
-
-/** Today as YYYY-MM-DD in the visitor's own timezone, which is what a shopper means. */
-function today(): string {
-  const now = new Date();
-  return new Date(now.getTime() - now.getTimezoneOffset() * 60_000)
-    .toISOString()
-    .slice(0, 10);
-}
 
 export function AnnouncementStrip() {
   const selected = useStore((s) => s.selectedPromotionCode);
   const day = today();
-
-  if (PROMOTIONS.length === 0) return null;
 
   return (
     <section aria-label="Announcements" className="bg-muted/30 border-b">

@@ -21,7 +21,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { createElement } from "react";
 import { AreaChart } from "recharts";
 import { getMetric } from "../shared/metrics.js";
-import type { MetricQuery, MetricUnit } from "../shared/types.js";
+import type { MetricQuery, TrustVerdict } from "../shared/types.js";
 import {
   composeQuery,
   isMetricId,
@@ -35,23 +35,12 @@ import {
   CHART_MARGIN,
   CHART_THEME,
   chartBody,
+  formatAxis,
   type ChartPoint,
 } from "../src/ui/chart-figure.js";
 
 const WIDTH = 720;
 const HEIGHT = 320;
-
-/** The same rendering rule the tools use, so a ratio never prints as money. */
-function formatValue(value: number, unit: MetricUnit): string {
-  if (unit === "currency")
-    return value.toLocaleString("en-US", {
-      style: "currency",
-      currency: "USD",
-      maximumFractionDigits: 0,
-    });
-  if (unit === "ratio") return `${(value * 100).toFixed(1)}%`;
-  return value.toLocaleString("en-US");
-}
 
 /**
  * Pull the <svg> out of what React returned and give it a namespace.
@@ -82,7 +71,7 @@ function extractSvg(markup: string): string | null {
  *
  * An `ok` slice gets no caption. A clean chart should look clean.
  */
-function caption(svg: string, verdict: string): string {
+function caption(svg: string, verdict: TrustVerdict): string {
   if (verdict === "ok") return svg;
   const words =
     verdict === "blocked"
@@ -96,7 +85,7 @@ function caption(svg: string, verdict: string): string {
   return svg.replace(/(<svg[^>]*>)/, `$1${band}`);
 }
 
-function message(text: string, verdict = "ok"): Response {
+function message(text: string, verdict: TrustVerdict = "ok"): Response {
   // A picture that says why there is no picture. An empty 200 would be read as
   // a chart of zero, which is the one reading that must never happen: on this
   // period a blocked slice has no rows precisely BECAUSE they were rejected,
@@ -162,7 +151,7 @@ export async function GET(request: Request): Promise<Response> {
       createElement(
         AreaChart,
         { data: series, width: WIDTH, height: HEIGHT, margin: CHART_MARGIN },
-        chartBody(CHART_THEME, (v: number) => formatValue(v, metric.unit)),
+        chartBody(CHART_THEME, (v: number) => formatAxis(v, metric.unit)),
       ),
     );
 

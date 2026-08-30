@@ -54,9 +54,6 @@ import type {
 import qualityChecks from "../../data/meta/quality_checks.json";
 import lineageDoc from "../../data/meta/lineage.json";
 import runsDoc from "../../data/meta/pipeline_runs.json";
-// Promotions are the one artifact the ETL does not write. The offer is
-// synthetic and hand-written; only the verdict under its claim is real.
-import promotionsDoc from "../../data/meta/promotions.json";
 
 /** Where an answer came from. Reported to the agent, never hidden. */
 export type ReadSource = "api" | "pipeline artifact";
@@ -429,31 +426,12 @@ export const NO_PRODUCTS_ENDPOINT =
 
 
 // ------------------------------------------------------------- promotions
+//
+// The record itself lives in src/promotions.ts, which both lanes read. Only the
+// join belongs here, because reading the check that governs a claim is a read
+// through the seam and that is what this module is.
 
-const ARTIFACT_PROMOTIONS = (promotionsDoc as unknown as { promotions: Promotion[] })
-  .promotions;
-
-/**
- * Every promotion Kestrel has ever run, in file order.
- *
- * Read straight from the committed artifact rather than an endpoint. There is
- * no /api/promotions and there should not be one: the promotion is invented
- * copy, not a query, and the only part of it a server could answer for is the
- * verdict, which /api/trust already answers.
- */
-export function readPromotions(): Promotion[] {
-  return ARTIFACT_PROMOTIONS;
-}
-
-export function findPromotion(code: string): Promotion | null {
-  const wanted = code.trim().toUpperCase();
-  return ARTIFACT_PROMOTIONS.find((p) => p.code.toUpperCase() === wanted) ?? null;
-}
-
-/** Whether a promotion is running on a given YYYY-MM-DD day, bounds inclusive. */
-export function isLive(p: Promotion, day: string): boolean {
-  return p.validFrom <= day && day <= p.validTo;
-}
+export { findPromotion, isLive, readPromotions } from "@/promotions";
 
 /**
  * The join this whole feature rests on: a claim's slice against the verdict the

@@ -98,9 +98,15 @@ function table(
  * overlap breakdown_metric completely, which is how tool selection degrades.
  * See issue #22.
  *
+ * On get_metric only. A breakdown has no chart to link to: the page renders a
+ * breakdown as a TABLE (src/ui/breakdown.tsx), so an endpoint that drew bars
+ * for it would be a second drawing with nothing on screen to agree with, which
+ * is the drift issue #29 exists to prevent. The breakdown's machine-readable
+ * form is the pipe table above.
+ *
  * The picture is the page's picture: /api/chart renders the same Recharts
- * module TrendChart renders, from the same rows, and stamps the trust verdict
- * into the image itself. That last part matters more than it looks. An image
+ * module TrendChart renders, from the same rows, under the same store filters
+ * the page is showing, and stamps the trust verdict into the image itself. That last part matters more than it looks. An image
  * travels in a way a transcript does not, so a chart of an incomplete figure
  * that carried no verdict would be the failure this project exists to stop,
  * made more pasteable.
@@ -270,7 +276,6 @@ function breakdownMetric(): ToolSpec {
           maximum: 50,
           description: "How many rows to return. Defaults to 10.",
         },
-        chart: CHART_ARG,
       },
       required: ["metric", "dimension"],
     },
@@ -327,8 +332,7 @@ function breakdownMetric(): ToolSpec {
           `dimension "${dimension}" and the row's own value. The verdict ` +
           `ranges over metric plus period plus filter, and on this period some ` +
           `rows of this very breakdown are sound while others have no data ` +
-          `behind them at all.` +
-          (args.chart === true ? chartLine(metric, period) : ""),
+          `behind them at all.`,
       );
     },
   };
