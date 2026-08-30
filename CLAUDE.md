@@ -57,7 +57,7 @@ enums from it.
 
 ## Rules for agents
 
-These are not suggestions. Two people share this repo and the freeze is close.
+These are not suggestions. Two people share this repo and the submission is close.
 
 ### Stay in your lane
 
@@ -102,9 +102,10 @@ npm run etl        # regenerate data/gold + data/meta from Contoso source
 
 ## Scope discipline
 
-The freeze is **Mon Aug 31**. After it: no new features, only tuning tool
-descriptions against real transcripts. The cut list, in order, is in
-[docs/PLAN.md](docs/PLAN.md) §9 - cut from the top, do not improvise.
+There is no feature freeze. The project stays open to new work until the
+submission on **Sep 3, 1:00pm PT**. What replaces the freeze is the cut list in
+[docs/PLAN.md](docs/PLAN.md) §9 - when the day runs long, cut from the top and
+do not improvise.
 
 Do not build real authentication. The demo session is identity, not security.
 
