@@ -22,7 +22,7 @@ async function loadLineage(): Promise<Lineage> {
   return cached;
 }
 
-export default async function handler(request: Request): Promise<Response> {
+export async function GET(request: Request): Promise<Response> {
   const lineage = await loadLineage();
   const technical = wantsTechnicalDetail(getSession(request).audience);
 

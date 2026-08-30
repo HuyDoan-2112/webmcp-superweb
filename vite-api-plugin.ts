@@ -44,13 +44,18 @@ export function apiPlugin(): Plugin {
         }
 
         try {
+          // Vercel's Node runtime treats a bare default export as the legacy
+          // (req, res) handler and hands it an IncomingMessage. The Web
+          // signature needs a named method export, so the endpoints export GET
+          // and this looks for the same thing rather than for `default`. See
+          // https://vercel.com/docs/functions/runtimes/node-js
           const module = (await server.ssrLoadModule(`/api/${name}.ts`)) as {
-            default?: Handler;
+            GET?: Handler;
           };
-          if (typeof module.default !== "function") {
+          if (typeof module.GET !== "function") {
             return send(res, new Response("Not found", { status: 404 }));
           }
-          await send(res, await module.default(toRequest(req)));
+          await send(res, await module.GET(toRequest(req)));
         } catch (error) {
           server.config.logger.error(`[api] ${path} failed`, { error: error as Error });
           await send(

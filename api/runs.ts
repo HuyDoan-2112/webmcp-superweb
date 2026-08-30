@@ -6,7 +6,7 @@ import { json } from "./_lib/http.js";
 import { loadRuns } from "./_lib/runs.js";
 import { getSession, wantsTechnicalDetail } from "./_lib/session.js";
 
-export default async function handler(request: Request): Promise<Response> {
+export async function GET(request: Request): Promise<Response> {
   const runs = await loadRuns();
   const technical = wantsTechnicalDetail(getSession(request).audience);
 

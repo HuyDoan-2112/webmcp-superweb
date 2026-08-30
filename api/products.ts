@@ -172,7 +172,7 @@ async function familiesFor(keys: string[]): Promise<ProductFamily[]> {
 
 // ----------------------------------------------------------------- handler
 
-export default async function handler(request: Request): Promise<Response> {
+export async function GET(request: Request): Promise<Response> {
   const p = params(request);
 
   const key = p.get("productKey");

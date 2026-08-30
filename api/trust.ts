@@ -12,7 +12,7 @@ import { getSession, wantsTechnicalDetail } from "./_lib/session.js";
 import { checksFor, verdictFor } from "./_lib/trust.js";
 import { latestRun } from "./_lib/runs.js";
 
-export default async function handler(request: Request): Promise<Response> {
+export async function GET(request: Request): Promise<Response> {
   const p = params(request);
   const metricId = p.get("metric") ?? "";
   const period = p.get("period") ?? "";

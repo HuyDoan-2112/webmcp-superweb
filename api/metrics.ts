@@ -7,7 +7,7 @@ import { DIMENSIONS, METRICS, DEMO_PERIOD } from "../shared/metrics.js";
 import { json } from "./_lib/http.js";
 import { getSession, wantsTechnicalDetail } from "./_lib/session.js";
 
-export default async function handler(request: Request): Promise<Response> {
+export async function GET(request: Request): Promise<Response> {
   const session = getSession(request);
   const technical = wantsTechnicalDetail(session.audience);
 

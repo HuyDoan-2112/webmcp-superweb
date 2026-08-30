@@ -16,7 +16,7 @@ import { query } from "./_lib/duckdb.js";
 import { fail, json, params } from "./_lib/http.js";
 import { verdictFor } from "./_lib/trust.js";
 
-export default async function handler(request: Request): Promise<Response> {
+export async function GET(request: Request): Promise<Response> {
   const p = params(request);
   const metricId = p.get("metric") ?? "";
   const period = p.get("period") ?? "";
