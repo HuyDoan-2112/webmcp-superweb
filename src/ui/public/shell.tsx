@@ -4,6 +4,8 @@ import { PublicHeader } from "./header";
 import { Catalog } from "./catalog";
 import { ProductDetail } from "./product-detail";
 import { LOCALE_TAGS, t } from "./i18n";
+// PROTOTYPE (issue #30), dev only, renders nothing without ?variant=
+import { PrototypeStrip } from "./prototype-strip";
 
 /**
  * The public surface: what an anonymous visitor to Kestrel Supply Co. sees,
@@ -24,6 +26,7 @@ export function PublicShell() {
   return (
     <div className="bg-background flex min-h-svh flex-col">
       <PublicHeader />
+      {import.meta.env.DEV && <PrototypeStrip />}
       <main className="flex-1">
         {selectedProductKey === null ? <Catalog /> : <ProductDetail />}
       </main>
