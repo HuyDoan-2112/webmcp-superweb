@@ -126,6 +126,7 @@ export function FamilyCard({
             name={family.familyName}
             categoryName={family.categoryName}
             color={variant.color}
+            productCode={variant.productCode}
           />
           <span className="bg-background/85 text-foreground absolute start-3 top-3 rounded px-1.5 py-0.5 font-mono text-[10px] tracking-[0.16em] tabular-nums backdrop-blur-sm">
             {variant.productCode}

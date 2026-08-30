@@ -23,6 +23,12 @@ export function App() {
   return <InternalShell />;
 }
 
+const TITLE: Record<string, string> = {
+  dashboard: "Revenue",
+  report: "Revenue report",
+  lineage: "Lineage",
+};
+
 function InternalShell() {
   const view = useStore((s) => s.view);
 
@@ -31,9 +37,10 @@ function InternalShell() {
       <AppSidebar />
       <SidebarInset>
         <Header fixed>
-          <PeriodBar />
+          <h2 className="text-sm font-medium">{TITLE[view]}</h2>
         </Header>
         <Main fixed>
+          <PeriodBar />
           {view === "dashboard" && <Dashboard />}
           {view === "report" && <Report />}
           {view === "lineage" && <Lineage />}

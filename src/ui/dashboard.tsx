@@ -9,7 +9,7 @@ export function Dashboard() {
   const scope = filters.country ?? filters.channel ?? "all channels";
 
   return (
-    <div className="flex flex-col gap-4 overflow-y-auto">
+    <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto">
       <div>
         <h1 className="text-2xl font-bold tracking-tight">Revenue</h1>
         <p className="text-muted-foreground text-sm">

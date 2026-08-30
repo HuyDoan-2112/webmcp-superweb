@@ -121,6 +121,7 @@ export function ProductDetail() {
             name={family?.familyName ?? product.productName}
             categoryName={product.categoryName}
             color={product.color}
+            productCode={product.productCode}
             size="detail"
             className="rounded-xl border"
           />

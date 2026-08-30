@@ -20,7 +20,7 @@ export function Lineage() {
   const run = data?.runs.runs[0];
 
   return (
-    <div className="flex flex-col gap-4 overflow-y-auto">
+    <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto">
       <div>
         <h1 className="text-2xl font-bold tracking-tight">Lineage</h1>
         <p className="text-muted-foreground text-sm">

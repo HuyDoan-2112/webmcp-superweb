@@ -15,6 +15,7 @@
 // The tint is mixed into `var(--card)` with color-mix, so the artwork follows
 // the theme: pale on the light surface, deep on the dark one, same colour.
 
+import { useState } from "react";
 import { Bird } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { hashOf, swatchFor } from "./format";
@@ -95,6 +96,7 @@ export function ProductImage({
   name,
   categoryName,
   color,
+  productCode,
   size = "card",
   className,
 }: {
@@ -103,9 +105,33 @@ export function ProductImage({
   categoryName: string;
   /** The colourway on show. Decides the tint. */
   color: string;
+  /**
+   * When a photograph has been committed for this variant, its product code.
+   * The file is looked for at `public/products/<productCode>.jpg`; if it is not
+   * there, or fails to decode, the generated artwork below draws instead. That
+   * fallback is what lets photography land one product at a time rather than as
+   * a single all-or-nothing swap.
+   */
+  productCode?: string;
   size?: "card" | "detail";
   className?: string;
 }) {
+  // Remember the code that failed, not a bare boolean: switching colourway
+  // swaps in a different file, which deserves its own attempt.
+  const [failedCode, setFailedCode] = useState<string | null>(null);
+
+  if (productCode !== undefined && failedCode !== productCode) {
+    return (
+      <img
+        src={`/products/${productCode}.jpg`}
+        alt={name}
+        loading="lazy"
+        onError={() => setFailedCode(productCode)}
+        className={cn("aspect-[8/5] w-full object-cover", className)}
+      />
+    );
+  }
+
   const angle = 100 + (hashOf(name) % 90);
   const Glyph = GLYPHS[categoryName] ?? FallbackGlyph;
 
