@@ -34,3 +34,8 @@ skills-lock.json
 .DS_Store
 Thumbs.db
 *.log
+
+# Vercel CLI: project link and the OIDC token it downloads
+.vercel
+.env.local
+.env*.local
