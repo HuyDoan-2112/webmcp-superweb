@@ -41,6 +41,14 @@ range. 2,517 rows are 885 families. Say "product" to a reader and "family" in
 code, where the distinction from a variant is load bearing.
 _Avoid_: group, model, parent product, SKU (a SKU is one variant)
 
+**Facet**:
+One value a visitor can filter the catalogue by, carried with the number of
+families that would remain if they picked it. Each facet is counted with every
+other filter applied but not its own, so a count never promises a page that
+turns out empty once you click it. A facet belongs to the catalogue; a dimension
+belongs to a metric. They are not the same word for the same thing.
+_Avoid_: filter, dimension, aggregation
+
 **Declarative tool**:
 A tool the browser registers from HTML, because the form carries `toolname` and
 `tooldescription`. Nothing calls `registerTool` and the schema is synthesised
@@ -59,7 +67,8 @@ _Avoid_: KPI, measure
 **Dimension**:
 An axis a metric can be split along. Category, store, country, channel. Channel
 is derived rather than read, because the source has no channel column.
-_Avoid_: breakdown, facet, group-by
+_Avoid_: breakdown, group-by, facet (a facet is a catalogue filter
+value, not an analytical axis)
 
 **Grain**:
 The row level a metric aggregates over. Two metrics at different grains cannot
