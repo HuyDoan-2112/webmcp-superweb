@@ -1,11 +1,14 @@
 // Ambient types for the WebMCP browser API.
 //
-// Measured against Chrome 152, not copied from the explainer. See
-// scratchpad gate0-webmcp/FINDINGS.md. Three shapes here are not what a first
-// guess produces, and each was observed rather than assumed:
+// Measured in the browser, not copied from the explainer. Rerun the probe with
+// `node docs/probe-modelcontext.mjs` rather than trusting this comment. Three
+// shapes here are not what a first guess produces, and each was observed:
 //
-//   1. The object hangs off `document`, not `navigator`. `navigator.modelContext`
-//      is undefined in Chrome 152.
+//   1. The object hangs off `document`. It also hangs off `navigator`, and the
+//      two are the SAME object: `document.modelContext === navigator.modelContext`
+//      is true. Earlier notes here claimed the navigator spelling was undefined;
+//      that was wrong, and remeasuring is what caught it. Prefer `document`,
+//      which is the spelling the W3C explainer specifies.
 //   2. `title` is a top level field on the descriptor. Nested inside
 //      `annotations` the browser silently drops it.
 //   3. `getTools()` hands back `inputSchema` as a JSON string, because the
@@ -78,7 +81,11 @@ declare global {
   }
 
   interface Navigator {
-    /** Removed before Chrome 152. Kept only so feature detection type checks. */
+    /**
+     * The same object as `document.modelContext`, not a legacy alias and not
+     * absent. Declared so `adapter.ts`'s `??` chain type checks; `document` is
+     * still the spelling to read.
+     */
     modelContext?: ModelContext;
   }
 
