@@ -98,7 +98,6 @@ export function startModelContext(): void {
   mountPanel();
 
   if (!isSupported()) {
-    // eslint-disable-next-line no-console
     console.warn(
       "[superweb] document.modelContext is absent, so no WebMCP tools were " +
         "registered. The dashboard works normally. Chrome 149 or later is " +
