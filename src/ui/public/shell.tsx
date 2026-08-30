@@ -3,6 +3,7 @@ import { useStore } from "@/hooks/use-store";
 import { PublicHeader } from "./header";
 import { Catalog } from "./catalog";
 import { ProductDetail } from "./product-detail";
+import { AnnouncementStrip } from "./announcement";
 import { LOCALE_TAGS, t } from "./i18n";
 
 /**
@@ -24,6 +25,7 @@ export function PublicShell() {
   return (
     <div className="bg-background flex min-h-svh flex-col">
       <PublicHeader />
+      {selectedProductKey === null && <AnnouncementStrip />}
       <main className="flex-1">
         {selectedProductKey === null ? <Catalog /> : <ProductDetail />}
       </main>

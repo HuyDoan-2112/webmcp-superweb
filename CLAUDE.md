@@ -37,6 +37,8 @@ writing the wrong layer.
 | `src/ui/`, `src/auth/` | A | dashboard, tiles, chart, report, lineage ladder |
 | `src/mcp/` | **B - owns it entirely** | registration, panel, the WebMCP tools |
 
+How to add a tool, and when not to, is [src/mcp/README.md](src/mcp/README.md).
+
 `shared/` is the only shared write surface. Changing it means saying so out loud
 first - the server builds SQL from it and the client builds tool `inputSchema`
 enums from it.

@@ -16,6 +16,11 @@
 //
 // find_drivers is deliberately absent. It overlaps breakdown_metric and
 // docs/PLAN.md ranks it cut-first.
+//
+// breakdown_metric returns a pipe table rather than hand-aligned lines. That
+// was a change to the return value, not to the schema: a `format` enum would
+// have been one more thing for the agent to get wrong, for output it can have
+// for free. See issue #27.
 
 import {
   DEMO_PERIOD,
@@ -26,7 +31,7 @@ import {
   getMetric,
   supportsDimension,
 } from "@shared/metrics";
-import { setMetric, setPeriod, setView } from "@/store";
+import { getState, setMetric, setPeriod, setView } from "@/store";
 import { NO_QUERY_ENDPOINT, readCheck, readQuery } from "../api";
 import { text, type ToolSpec } from "../adapter";
 import { verdictLine } from "./trust";
@@ -46,6 +51,90 @@ function format(value: number, unit: MetricUnit): string {
     });
   if (unit === "ratio") return `${(value * 100).toFixed(1)}%`;
   return value.toLocaleString("en-US");
+}
+
+/**
+ * The rows as a table an agent can re-read without parsing prose.
+ *
+ * A pipe table, and only a pipe table. The hand-formatted lines this replaced
+ * could not be re-sorted, summed or filtered without guessing at a shape
+ * nothing promised, and keeping both renderings would be the drift problem this
+ * repo keeps warning about at a smaller scale: two spellings of the same rows,
+ * free to disagree.
+ *
+ * Both numbers travel. `value` is rendered in the metric's own unit, because a
+ * ratio printed as a currency survives into a deck; `raw` is the unformatted
+ * number, because an agent that sums or re-sorts a formatted string gets it
+ * wrong. One number rendered twice is safe in a way two row sets would not be.
+ *
+ * No verdict column. The verdict ranges over metric plus period plus filter,
+ * never over one row, so a per-row column would invent verdicts the pipeline
+ * never recorded. It stays in the prose below, where re-sorting the rows cannot
+ * detach it from what it governs.
+ */
+function table(
+  rows: { label?: string | null; value: number; share?: number }[],
+  dimensionLabel: string,
+  unit: MetricUnit,
+): string {
+  const head = `| ${dimensionLabel} | value | raw | share |\n| --- | ---: | ---: | ---: |`;
+  const body = rows
+    .map((r) => {
+      const share = r.share !== undefined ? `${(r.share * 100).toFixed(1)}%` : "";
+      return (
+        `| ${r.label ?? "(unlabelled)"} | ${format(r.value, unit)} | ` +
+        `${r.value} | ${share} |`
+      );
+    })
+    .join("\n");
+  return `${head}\n${body}`;
+}
+
+/**
+ * A link to the chart the dashboard is showing, drawn server side.
+ *
+ * A capability the agent gets as an argument rather than as a `chart_metric`
+ * tool. A tool would duplicate metric, period and dimension on every call and
+ * overlap breakdown_metric completely, which is how tool selection degrades.
+ * See issue #22.
+ *
+ * The picture is the page's picture: /api/chart renders the same Recharts
+ * module TrendChart renders, from the same rows, and stamps the trust verdict
+ * into the image itself. That last part matters more than it looks. An image
+ * travels in a way a transcript does not, so a chart of an incomplete figure
+ * that carried no verdict would be the failure this project exists to stop,
+ * made more pasteable.
+ */
+function chartUrl(metric: string, period: string): string {
+  const filters = getState().filters;
+  const query = new URLSearchParams({ metric, period });
+  for (const [key, value] of Object.entries(filters)) {
+    if (typeof value === "string" && value !== "") query.set(key, value);
+  }
+  const origin =
+    typeof window === "undefined" ? "" : window.location.origin;
+  return `${origin}/api/chart?${query.toString()}`;
+}
+
+const CHART_ARG = {
+  type: "boolean" as const,
+  description:
+    "Return a link to the chart as well as the figures. The image is drawn " +
+    "from the same rows the page draws and carries the trust verdict stamped " +
+    "into it, so it stays honest when it is pasted somewhere else. Ask for it " +
+    "when a person is going to look at this, not when only you are.",
+};
+
+function chartLine(metric: string, period: string): string {
+  return (
+    `
+
+Chart: ${chartUrl(metric, period)}
+` +
+    `That link opens the trend for this slice as an image. If the figures ` +
+    `behind it were not fully counted, the picture says so on its face, so it ` +
+    `can be handed to someone else without this conversation going with it.`
+  );
 }
 
 function listMetrics(): ToolSpec {
@@ -101,6 +190,7 @@ function getMetricTool(): ToolSpec {
           type: "string",
           description: `Month as YYYY-MM. Defaults to ${DEMO_PERIOD}.`,
         },
+        chart: CHART_ARG,
       },
       required: ["metric"],
     },
@@ -145,7 +235,8 @@ function getMetricTool(): ToolSpec {
           `up, describe_metric for what is excluded from it, and ` +
           `check_data_trust with a filter before publishing any single slice. ` +
           `The whole-period verdict does not carry down to every slice inside ` +
-          `it, and on this period it genuinely does not.`,
+          `it, and on this period it genuinely does not.` +
+          (args.chart === true ? chartLine(metric, period) : ""),
       );
     },
   };
@@ -179,6 +270,7 @@ function breakdownMetric(): ToolSpec {
           maximum: 50,
           description: "How many rows to return. Defaults to 10.",
         },
+        chart: CHART_ARG,
       },
       required: ["metric", "dimension"],
     },
@@ -224,17 +316,7 @@ function breakdownMetric(): ToolSpec {
       const dim = getDimension(dimension);
       const rows =
         query && query.rows.length > 0
-          ? query.rows
-              .slice(0, limit)
-              .map(
-                (r) =>
-                  `${r.label ?? "(unlabelled)"}  ` +
-                  `${format(r.value, definition.unit)}` +
-                  (r.share !== undefined
-                    ? `  ${(r.share * 100).toFixed(1)}% of the total`
-                    : ""),
-              )
-              .join("\n")
+          ? table(query.rows.slice(0, limit), dim.label, definition.unit)
           : NO_QUERY_ENDPOINT;
 
       return text(
@@ -245,7 +327,8 @@ function breakdownMetric(): ToolSpec {
           `dimension "${dimension}" and the row's own value. The verdict ` +
           `ranges over metric plus period plus filter, and on this period some ` +
           `rows of this very breakdown are sound while others have no data ` +
-          `behind them at all.`,
+          `behind them at all.` +
+          (args.chart === true ? chartLine(metric, period) : ""),
       );
     },
   };

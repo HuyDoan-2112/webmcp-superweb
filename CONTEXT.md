@@ -151,3 +151,32 @@ online channel is the one in the demo period, a quarter short and reading as
 entirely ordinary. It is the more dangerous of the two states, because a blocked
 section cannot be pasted into a deck and this one can.
 _Avoid_: partial, warning, incomplete section
+
+### Promotions
+
+**Promotion**:
+One synthetic marketing offer Kestrel is running: a code, its copy, the window
+it is valid for, and exactly one claim. Invented content, unlike everything
+else on the public surface, which is read from the pipeline.
+_Avoid_: campaign, offer, deal, coupon (a code is one field of a promotion, not
+the promotion)
+
+**Claim**:
+The checkable assertion inside a promotion's copy, bound to the one slice of
+one metric that would prove or disprove it. A promotion carries exactly one; if
+it needs two, it is two promotions. The claim is what makes marketing copy
+answerable rather than decorative.
+_Avoid_: assertion alone, statement, headline
+
+**Announcement**:
+The strip on the public surface that shows live promotions to a visitor. It is
+the place, never the record: a promotion is announced on it. Say "promotion"
+when you mean the thing and "announcement" when you mean where it appears.
+_Avoid_: banner, promo bar, announcement as a synonym for promotion
+
+**Unchecked**:
+The state of a claim whose slice the pipeline never evaluated, distinct from a
+verdict of any kind. Nobody looked, which is not the same as looked and failed,
+and it calls for a different action. It sits above the verdict rather than
+inside it, so the three verdicts stay three.
+_Avoid_: unverified, unknown, pending, a fourth verdict

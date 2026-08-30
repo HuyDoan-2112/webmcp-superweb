@@ -108,6 +108,15 @@ export type State = {
   selectedProductKey: number | null;
   /** True while /api/products is in flight. */
   catalogLoading: boolean;
+  /**
+   * Which promotion is open on the announcement strip, by code, or null.
+   *
+   * Selection only. The strip never shows whether the claim behind a promotion
+   * survived its check: a page that told a shopper the number was bad would
+   * make check_promotion redundant, and the point is that the page looks
+   * entirely fine and only the agent can tell you otherwise.
+   */
+  selectedPromotionCode: string | null;
 };
 
 const initial: State = {
@@ -128,6 +137,7 @@ const initial: State = {
   catalogPage: 1,
   selectedProductKey: null,
   catalogLoading: false,
+  selectedPromotionCode: null,
 };
 
 let state: State = initial;
@@ -211,6 +221,7 @@ export function openReport(): void {
 //   open_product         -> selectProduct(productKey)
 //   back_to_catalog      -> selectProduct(null)
 //   set_language         -> setLocale("en" | "es" | "fr" | "de" | "ja")
+//   check_promotion      -> selectPromotion(code), null closes it
 //
 // Every setter that changes what matches also resets catalogPage to 1. Page 7
 // of a result that is now two pages long is an empty grid, and an agent that
@@ -236,6 +247,11 @@ export function setSurface(surface: Surface): void {
 /** Set the language of the public interface. Product data is never translated. */
 export function setLocale(locale: Locale): void {
   setState({ locale });
+}
+
+/** Open one promotion on the announcement strip, or null to close it. */
+export function selectPromotion(code: string | null): void {
+  setState({ selectedPromotionCode: code });
 }
 
 /**

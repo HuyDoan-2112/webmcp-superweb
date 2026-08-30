@@ -1,12 +1,4 @@
-import {
-  Area,
-  AreaChart,
-  CartesianGrid,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from "recharts";
+import { AreaChart, ResponsiveContainer, Tooltip } from "recharts";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { fetchMetric } from "@/api";
@@ -14,6 +6,21 @@ import { useAsync } from "@/hooks/use-async";
 import { useStore } from "@/hooks/use-store";
 import { formatMetric } from "@/ui/format";
 import { clean } from "@/ui/tiles";
+import { CHART_MARGIN, chartBody, type ChartTheme } from "@/ui/chart-figure";
+
+/**
+ * The page's own theme values, passed into the shared drawing.
+ *
+ * These are CSS variables, which resolve in a browser and to nothing in a
+ * standalone SVG. That is exactly why the drawing takes them as props: the
+ * chart endpoint passes literal colours instead and gets the same axes.
+ */
+const PAGE_THEME: ChartTheme = {
+  line: "var(--chart-1)",
+  grid: "var(--border)",
+  axis: "var(--muted-foreground)",
+  fontSize: 12,
+};
 
 export function TrendChart() {
   const period = useStore((s) => s.period);
@@ -54,31 +61,8 @@ export function TrendChart() {
           </div>
         ) : (
           <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={series} margin={{ top: 8, right: 16, left: 8, bottom: 0 }}>
-              <defs>
-                <linearGradient id="fill-metric" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="var(--chart-1)" stopOpacity={0.5} />
-                  <stop offset="95%" stopColor="var(--chart-1)" stopOpacity={0.05} />
-                </linearGradient>
-              </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
-              <XAxis
-                dataKey="day"
-                tickLine={false}
-                axisLine={false}
-                tickMargin={8}
-                minTickGap={24}
-                className="text-xs"
-                stroke="var(--muted-foreground)"
-              />
-              <YAxis
-                tickFormatter={(v: number) => formatMetric(v, unit)}
-                tickLine={false}
-                axisLine={false}
-                width={64}
-                className="text-xs"
-                stroke="var(--muted-foreground)"
-              />
+            <AreaChart data={series} margin={CHART_MARGIN}>
+              {chartBody(PAGE_THEME, (v: number) => formatMetric(v, unit))}
               <Tooltip
                 contentStyle={{
                   background: "var(--popover)",
@@ -88,13 +72,6 @@ export function TrendChart() {
                   fontSize: 12,
                 }}
                 formatter={(v: number) => [formatMetric(v, unit), "Value"]}
-              />
-              <Area
-                type="monotone"
-                dataKey="value"
-                stroke="var(--chart-1)"
-                strokeWidth={2}
-                fill="url(#fill-metric)"
               />
             </AreaChart>
           </ResponsiveContainer>

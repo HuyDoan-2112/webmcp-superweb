@@ -6,7 +6,8 @@
 //
 // Four groups, each with its own lifetime:
 //
-//   public       the catalogue tools, while the catalogue is the page
+//   public       the catalogue and promotions tools, while the catalogue is
+//                the page
 //   internal     the dashboard tools, once someone has signed in
 //   report       draft_report and build_deck, once the report is open
 //   diagnostics  explain_data_issue and trace_lineage, once a check has failed
@@ -32,6 +33,7 @@ import { getState, setState, subscribe } from "@/store";
 import { ToolGroup, isSupported } from "./adapter";
 import { mountPanel } from "./panel";
 import { publicTools } from "./tools/catalog";
+import { promotionTools } from "./tools/promotions";
 import { readTools } from "./tools/read";
 import { trustTools } from "./tools/trust";
 import { diagnosticTools } from "./tools/trust";
@@ -39,7 +41,10 @@ import { viewTools } from "./tools/view";
 import { reportEntryTools, reportTools } from "./tools/report";
 
 const groups = {
-  public: new ToolGroup("public", publicTools),
+  public: new ToolGroup("public", async () => [
+    ...(await publicTools()),
+    ...promotionTools(),
+  ]),
   internal: new ToolGroup("internal", () => [
     ...readTools(),
     ...trustTools(),

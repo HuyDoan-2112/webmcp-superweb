@@ -43,6 +43,8 @@ import type {
   MetricResult,
   PipelineRun,
   Product,
+  Promotion,
+  PromotionOutcome,
   TrustReport,
   TrustVerdict,
 } from "@shared/types";
@@ -52,6 +54,9 @@ import type {
 import qualityChecks from "../../data/meta/quality_checks.json";
 import lineageDoc from "../../data/meta/lineage.json";
 import runsDoc from "../../data/meta/pipeline_runs.json";
+// Promotions are the one artifact the ETL does not write. The offer is
+// synthetic and hand-written; only the verdict under its claim is real.
+import promotionsDoc from "../../data/meta/promotions.json";
 
 /** Where an answer came from. Reported to the agent, never hidden. */
 export type ReadSource = "api" | "pipeline artifact";
@@ -421,3 +426,52 @@ export const NO_PRODUCTS_ENDPOINT =
   "be invented. /api/products is what the page itself reads, so the visitor " +
   "is most likely looking at an error too. Say so rather than describing a " +
   "catalogue you cannot see.";
+
+
+// ------------------------------------------------------------- promotions
+
+const ARTIFACT_PROMOTIONS = (promotionsDoc as unknown as { promotions: Promotion[] })
+  .promotions;
+
+/**
+ * Every promotion Kestrel has ever run, in file order.
+ *
+ * Read straight from the committed artifact rather than an endpoint. There is
+ * no /api/promotions and there should not be one: the promotion is invented
+ * copy, not a query, and the only part of it a server could answer for is the
+ * verdict, which /api/trust already answers.
+ */
+export function readPromotions(): Promotion[] {
+  return ARTIFACT_PROMOTIONS;
+}
+
+export function findPromotion(code: string): Promotion | null {
+  const wanted = code.trim().toUpperCase();
+  return ARTIFACT_PROMOTIONS.find((p) => p.code.toUpperCase() === wanted) ?? null;
+}
+
+/** Whether a promotion is running on a given YYYY-MM-DD day, bounds inclusive. */
+export function isLive(p: Promotion, day: string): boolean {
+  return p.validFrom <= day && day <= p.validTo;
+}
+
+/**
+ * The join this whole feature rests on: a claim's slice against the verdict the
+ * pipeline recorded for it.
+ *
+ * A slice the pipeline never evaluated comes back `unchecked`, never `blocked`.
+ * "Nobody looked" and "we looked and it failed" are different sentences that
+ * call for different actions, and collapsing them would be the same lie the
+ * dashboard exists to stop.
+ */
+export async function readClaimOutcome(
+  p: Promotion,
+): Promise<{ outcome: PromotionOutcome; check: Sourced<CheckRow | null> }> {
+  const s = p.claim.slice;
+  const check = await readCheck({
+    metric: s.metric,
+    period: s.period,
+    ...(s.dimension ? { dimension: s.dimension, value: s.value ?? undefined } : {}),
+  });
+  return { outcome: check.value ? check.value.verdict : "unchecked", check };
+}

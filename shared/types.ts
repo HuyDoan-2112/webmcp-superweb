@@ -258,3 +258,56 @@ export type ProductQuery = {
 export type ApiError = { error: string; detail?: string };
 
 export type ApiResult<T> = T | ApiError;
+
+// ------------------------------------------------------------- promotions
+
+/**
+ * The checkable assertion inside a promotion's copy, bound to the one slice
+ * that would prove or disprove it.
+ *
+ * The slice mirrors what the pipeline records a verdict against. A looser
+ * binding would make the tool infer which number the copy is about, and an
+ * inferred binding produces a verdict about a slice nobody chose, which is the
+ * failure this project exists to surface.
+ */
+export type PromotionClaim = {
+  assertion: string;
+  slice: {
+    metric: MetricId;
+    period: Period;
+    dimension: DimensionId | null;
+    value: string | null;
+  };
+};
+
+/**
+ * One synthetic marketing offer, carrying exactly one claim.
+ *
+ * The promotion is invented; the verdict under it is read from the pipeline.
+ * If a promotion needs two claims it is two promotions, because composing a
+ * blocked claim with two sound ones has no honest single answer.
+ *
+ * No locale field: promotion copy is not translated yet, and inventing the
+ * field would guess at a decision nobody has made. No structured discount
+ * either, because the discount is not the checkable part and a field for it
+ * implies the tool verifies it.
+ */
+export type Promotion = {
+  code: string;
+  headline: string;
+  body: string;
+  /** Inclusive YYYY-MM-DD bounds of the window the promotion runs in. */
+  validFrom: string;
+  validTo: string;
+  claim: PromotionClaim;
+};
+
+/**
+ * What a claim's slice came back as.
+ *
+ * `unchecked` is deliberately NOT a fourth TrustVerdict. Nobody looked is not
+ * the same answer as looked and failed, and it calls for a different action, so
+ * it sits above the verdict rather than inside it. The three verdicts stay
+ * three and nothing in api/ has to change.
+ */
+export type PromotionOutcome = TrustVerdict | "unchecked";
