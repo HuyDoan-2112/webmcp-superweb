@@ -10,7 +10,7 @@
 // could call it could grant itself the internal surface, which would make the
 // swap a thing the page does to itself rather than a thing a person does.
 
-import { setState, setSurface } from "@/store";
+import { setState, setSurface, type View } from "@/store";
 import { readSessionCookie, writeSessionCookie } from "./session";
 import { DEMO_USERS, findUser } from "./users";
 
@@ -24,9 +24,21 @@ import { DEMO_USERS, findUser } from "./users";
 export function signIn(userId: string = DEMO_USERS[0].id): void {
   const user = findUser(userId) ?? DEMO_USERS[0];
   writeSessionCookie(user.id);
-  setState({ audience: user.audience });
+  // Land on the view this person came for. Operations opens the report,
+  // because their question is whether a number can go out; Data Platform opens
+  // the lineage ladder, because theirs is where it broke. Everything stays
+  // reachable from the sidebar either way.
+  setState({ audience: user.audience, view: HOME[user.audience] });
   setSurface("internal");
 }
+
+/** Where each audience lands. Mirrored by the sidebar's ordering. */
+const HOME: Record<string, View> = {
+  public: "dashboard",
+  ops: "report",
+  analyst: "dashboard",
+  engineer: "lineage",
+};
 
 /** Back to the catalogue, and back to anonymous. */
 export function signOut(): void {

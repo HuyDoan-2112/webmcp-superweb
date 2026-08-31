@@ -27,6 +27,15 @@ import {
   respondToToolSubmit,
 } from "@/mcp/declarative";
 import { signIn } from "@/auth/switcher";
+import { DEMO_USERS } from "@/auth/users";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { fetchProducts } from "@/api";
 import { readStoreCountries } from "@/promotions";
 import { LOCALES, LOCALE_NAMES, t } from "./i18n";
@@ -60,11 +69,13 @@ import { LOCALES, LOCALE_NAMES, t } from "./i18n";
  * what that annotation exists for, so this one returns numbers and points at
  * `search_products` for the rows.
  *
- * "Staff sign in" is the demo beat. It calls signIn(), which writes the
+ * "Staff sign in" is the demo beat. Picking one of the three writes the
  * superweb_session cookie and moves the surface, so the page becomes the
  * dashboard, the registered tool set swaps from the small public one to the
  * full internal one, and every subsequent answer comes back at that person's
- * depth instead of at catalogue depth.
+ * depth instead of at catalogue depth. Which person is the point: Operations
+ * gets plain language, Owner and Data Platform get the check name and the row
+ * counts, and none of them is refused anything.
  */
 export function PublicHeader() {
   const locale = useStore((s) => s.locale);
@@ -249,10 +260,35 @@ export function PublicHeader() {
 
           <ThemeToggle />
 
-          <Button onClick={() => signIn()}>
-            <LogIn className="size-4" />
-            <span className="hidden md:inline">{t(locale, "staffSignIn")}</span>
-          </Button>
+          {/* Signing in asks who you are rather than silently making you the
+              first seeded person. The three answer at different depths, and the
+              menu is where a viewer sees that there is a choice at all. */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button>
+                <LogIn className="size-4" />
+                <span className="hidden md:inline">
+                  {t(locale, "staffSignIn")}
+                </span>
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="min-w-52">
+              <DropdownMenuLabel className="text-muted-foreground text-xs font-normal">
+                {t(locale, "signInAs")}
+              </DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              {DEMO_USERS.map((u) => (
+                <DropdownMenuItem key={u.id} onClick={() => signIn(u.id)}>
+                  <div className="grid text-sm leading-tight">
+                    <span>{u.name}</span>
+                    <span className="text-muted-foreground text-xs">
+                      {u.role}
+                    </span>
+                  </div>
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
     </header>

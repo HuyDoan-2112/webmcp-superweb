@@ -98,6 +98,7 @@ const STRINGS = {
     removeFilter: "Remove {label}",
     locationLabel: "Shopping from",
     allLocations: "All locations",
+    signInAs: "Sign in as",
     composedOne:
       "{name} is a {subcategory} line from {brand}, made by {manufacturer} and listed under {category}.",
     composedOneSameMaker:
@@ -176,6 +177,7 @@ const STRINGS = {
     removeFilter: "Quitar {label}",
     locationLabel: "Comprando desde",
     allLocations: "Todas las ubicaciones",
+    signInAs: "Iniciar sesión como",
     composedOne:
       "{name} es una referencia de {subcategory} de {brand}, fabricada por {manufacturer} y clasificada en {category}.",
     composedOneSameMaker:
@@ -255,6 +257,7 @@ const STRINGS = {
     removeFilter: "Retirer {label}",
     locationLabel: "Achats depuis",
     allLocations: "Tous les lieux",
+    signInAs: "Se connecter en tant que",
     composedOne:
       "{name} est une référence {subcategory} de {brand}, fabriquée par {manufacturer} et classée dans {category}.",
     composedOneSameMaker:
@@ -334,6 +337,7 @@ const STRINGS = {
     removeFilter: "{label} entfernen",
     locationLabel: "Einkauf aus",
     allLocations: "Alle Standorte",
+    signInAs: "Anmelden als",
     composedOne:
       "{name} ist eine {subcategory}-Position von {brand}, hergestellt von {manufacturer} und geführt unter {category}.",
     composedOneSameMaker:
@@ -416,6 +420,7 @@ const STRINGS = {
     removeFilter: "{label} を外す",
     locationLabel: "購入地域",
     allLocations: "すべての地域",
+    signInAs: "サインインする役割",
     composedOne:
       "{name} は {brand} の {subcategory} 商品で、製造は {manufacturer}、分類は {category} です。",
     composedOneSameMaker:
