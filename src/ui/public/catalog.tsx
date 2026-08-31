@@ -1,5 +1,6 @@
 import { useEffect, useSyncExternalStore } from "react";
 import {
+  ChevronDown,
   ChevronLeft,
   ChevronRight,
   SearchX,
@@ -414,10 +415,16 @@ function PriceFacet({
 }) {
   if (bands.length === 0) return null;
   return (
-    <div className={className}>
-      <p className="text-muted-foreground mb-2.5 font-mono text-[10px] tracking-[0.14em] uppercase">
-        {t(locale, "price")}
-      </p>
+    <details open className={cn("group border-t pt-3", className)}>
+      <summary className="mb-2 flex cursor-pointer list-none items-center justify-between gap-2 text-sm font-medium [&::-webkit-details-marker]:hidden">
+        <span>{t(locale, "price")}</span>
+        <span className="text-muted-foreground flex items-center gap-1.5">
+          {(min !== null || max !== null) && (
+            <span className="bg-primary size-1.5 rounded-full" aria-hidden="true" />
+          )}
+          <ChevronDown className="size-3.5 transition-transform group-open:rotate-180" />
+        </span>
+      </summary>
       <div className="flex flex-wrap gap-1.5 lg:flex-col lg:flex-nowrap lg:items-stretch lg:gap-0.5">
         {bands.map((band) => {
           const isActive = band.min === min && band.max === max;
@@ -450,7 +457,7 @@ function PriceFacet({
           );
         })}
       </div>
-    </div>
+    </details>
   );
 }
 
@@ -474,10 +481,16 @@ function Facet({
 }) {
   if (options.length === 0) return null;
   return (
-    <div className={className}>
-      <p className="text-muted-foreground mb-2.5 font-mono text-[10px] tracking-[0.14em] uppercase">
-        {label}
-      </p>
+    <details open className={cn("group border-t pt-3", className)}>
+      <summary className="mb-2 flex cursor-pointer list-none items-center justify-between gap-2 text-sm font-medium [&::-webkit-details-marker]:hidden">
+        <span>{label}</span>
+        <span className="text-muted-foreground flex items-center gap-1.5">
+          {active !== null && (
+            <span className="bg-primary size-1.5 rounded-full" aria-hidden="true" />
+          )}
+          <ChevronDown className="size-3.5 transition-transform group-open:rotate-180" />
+        </span>
+      </summary>
       <div className="flex flex-wrap gap-1.5 lg:flex-col lg:flex-nowrap lg:items-stretch lg:gap-0.5">
         {options.map(({ label: option, n }) => {
           const isActive = active === option;
@@ -512,6 +525,6 @@ function Facet({
           );
         })}
       </div>
-    </div>
+    </details>
   );
 }

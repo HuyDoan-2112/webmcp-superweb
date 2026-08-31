@@ -15,15 +15,18 @@
 // supplier's. That is why the tools over this carry untrustedContentHint:
 // false.
 
+import { ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useStore } from "@/hooks/use-store";
 import { selectPromotion } from "@/store";
 import { isLive, readPromotions, today } from "@/promotions";
+import { t } from "./i18n";
 
 const PROMOTIONS = readPromotions();
 
 export function AnnouncementStrip() {
   const selected = useStore((s) => s.selectedPromotionCode);
+  const locale = useStore((s) => s.locale);
   const day = today();
 
   return (
@@ -39,25 +42,29 @@ export function AnnouncementStrip() {
                   type="button"
                   aria-expanded={open}
                   aria-controls={`promo-${p.code}`}
-                  onClick={() => selectPromotion(open ? null : p.code)}
                   className={cn(
-                    "hover:bg-muted/40 flex w-full items-baseline gap-2 px-3 py-2.5 text-left transition",
+                    "hover:bg-muted/40 group/promo flex w-full items-center gap-3 px-4 py-3 text-left transition",
                     open && "bg-muted/60",
                   )}
+                  onClick={() => selectPromotion(open ? null : p.code)}
                 >
-                  <span
-                    aria-hidden="true"
-                    className={cn(
-                      "mt-1.5 size-1.5 shrink-0 rounded-full",
-                      running ? "bg-foreground" : "border-muted-foreground/50 border",
-                    )}
-                  />
-                  <span className="min-w-0">
-                    <span className="block truncate text-sm">{p.headline}</span>
-                    <span className="text-muted-foreground block font-mono text-[11px]">
-                      {running ? p.code : `${p.code} from ${p.validFrom}`}
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-sm font-medium">
+                      {p.headline}
+                    </span>
+                    <span className="text-muted-foreground mt-0.5 block text-xs">
+                      {running
+                        ? t(locale, "promoOnNow")
+                        : t(locale, "promoFrom", { date: p.validFrom })}
                     </span>
                   </span>
+                  <ChevronDown
+                    aria-hidden="true"
+                    className={cn(
+                      "text-muted-foreground size-4 shrink-0 transition-transform",
+                      open && "rotate-180",
+                    )}
+                  />
                 </button>
 
                 {/*
@@ -78,7 +85,7 @@ export function AnnouncementStrip() {
                       {p.claim.assertion}
                     </p>
                     <p className="text-muted-foreground mt-2 font-mono text-[11px]">
-                      {p.validFrom} to {p.validTo}
+                      {p.code} · {p.validFrom} to {p.validTo}
                     </p>
                   </div>
                 )}
