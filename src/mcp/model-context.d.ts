@@ -13,10 +13,11 @@
 //      `annotations` the browser silently drops it.
 //   3. `getTools()` hands back `inputSchema` as a JSON string, because the
 //      browser normalises it on the way in and re-serialises it on the way out.
-//   4. `executeTool(tool, args)` takes `args` as a JSON STRING, not an object,
-//      symmetrically with 3. An object throws
-//      "UnknownError: Failed to parse input arguments". The explainer does not
-//      say this; docs/probe-report-flow.mjs is what found it.
+//   4. `executeTool(tool, args)` is a string on BOTH sides. `args` goes in as a
+//      JSON string, and an object throws "UnknownError: Failed to parse input
+//      arguments". The call then resolves to a JSON STRING, not the response
+//      object, so a caller reading `result.content` gets undefined and an empty
+//      answer with no error to explain it. JSON.parse the result first.
 //   5. A declarative tool's schema is re-synthesised from the DOM after the
 //      markup changes, so a `<select>` filled by an async fetch still ends up
 //      with a real enum rather than the empty one it renders with first.

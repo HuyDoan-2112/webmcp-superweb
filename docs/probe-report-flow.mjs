@@ -15,9 +15,11 @@
 //   2. A figure the agent supplies in `commentary` never reaches the page.
 //      The Germany section below claims $999,999. It must not appear.
 //
-// One measured detail the explainer does not state: executeTool takes its
-// arguments as a JSON STRING, not an object. An object throws
-// "UnknownError: Failed to parse input arguments".
+// Two measured details the explainer does not state. executeTool takes its
+// arguments as a JSON STRING, and an object throws "UnknownError: Failed to
+// parse input arguments". It also RESOLVES to a JSON string rather than the
+// response object, so reading result.content gives undefined and an empty
+// answer with no error. Parse it.
 
 import { spawn } from "node:child_process";
 import { mkdtempSync, writeFileSync } from "node:fs";
@@ -95,7 +97,8 @@ const call = async (name, args) => String(await evaluate(`
       const ts = await document.modelContext.getTools();
       const t = ts.find(x => x.name === ${JSON.stringify(name)});
       if (!t) return "NOT REGISTERED: ${name}";
-      const r = await document.modelContext.executeTool(t, ${JSON.stringify(JSON.stringify(args))});
+      const raw = await document.modelContext.executeTool(t, ${JSON.stringify(JSON.stringify(args))});
+      const r = typeof raw === "string" ? JSON.parse(raw) : raw;
       return (r.content||[]).map(c=>c.text).join("\\n");
     } catch (e) { return "ERR " + (e && e.name) + ": " + (e && e.message); } })()
 `));
