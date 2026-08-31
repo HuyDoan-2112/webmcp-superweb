@@ -15,13 +15,23 @@ import { formatExact } from "@/ui/format";
  * Scoped by store country rather than by customer continent. Continent puts the
  * United Kingdom in Europe, which mixes clean sterling revenue into the broken
  * euro slice and turns a clean block into an ambiguous partial one.
+ *
+ * This is every country the pipeline recorded a check for, which is the same
+ * list draft_report's defaultSections builds from the check file. The page
+ * preview and the drafted report have to agree: a preview missing Online would
+ * never show the degraded verdict, and one missing France, Italy and the
+ * Netherlands would show a single blocked country where there are four.
  */
 const SECTIONS = [
   { heading: "United States", filters: { country: "United States" } },
   { heading: "Canada", filters: { country: "Canada" } },
   { heading: "United Kingdom", filters: { country: "United Kingdom" } },
   { heading: "Australia", filters: { country: "Australia" } },
+  { heading: "Online", filters: { country: "Online" } },
+  { heading: "France", filters: { country: "France" } },
   { heading: "Germany", filters: { country: "Germany" } },
+  { heading: "Italy", filters: { country: "Italy" } },
+  { heading: "Netherlands", filters: { country: "Netherlands" } },
 ] as const;
 
 export function Report() {

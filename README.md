@@ -30,12 +30,14 @@ data outnumbers the people who understand it.
 
 ## The demonstration
 
-Ask the agent for a revenue report. It writes five sections, refuses one, and
-flags another:
+Ask the agent for a revenue report. It cuts the month into one section per
+country the pipeline actually evaluated, publishes four, refuses four, and flags
+one:
 
-> I can't publish Europe. Every order line behind it lost its exchange rate for
-> this month, so there is no number to give you. Online is short about a quarter
-> of its lines for the same reason, so that total is understated.
+> I can't publish France, Germany, Italy or the Netherlands. Every order line
+> behind them lost its exchange rate for this month, so there is no number to
+> give you. Online is short about a quarter of its lines for the same reason, so
+> that total is understated.
 
 Nobody asked it to check. The business sells in five currencies, so every order
 has to be converted to USD using the exchange rate for the day it was placed. A
@@ -43,10 +45,12 @@ month of euro rates is missing, so those orders silently fell out of the
 pipeline. Not zero, not an error. Gone. 7,831 of the month's 31,084 order lines
 were never counted.
 
-Europe is the easy half. The loss there is total, so the section has no number
-to mislead anyone with. Online is the dangerous half: it keeps 14,043 of its
-18,831 lines and produces a figure that looks entirely ordinary and is a quarter
-too small. That is the one that gets pasted into a deck.
+The four euro countries are the easy half. The loss there is total - 410 lines
+in France, 1,739 in Germany, 229 in Italy, 665 in the Netherlands, every one of
+them rejected - so those sections have no number to mislead anyone with. Online
+is the dangerous half: it keeps 14,043 of its 18,831 lines and produces a figure
+that looks entirely ordinary and is a quarter too small. That is the one that
+gets pasted into a deck.
 
 The explanation arrives in the moment the number would have been written down,
 and the person being protected never has to learn what `fx_rate_not_null`

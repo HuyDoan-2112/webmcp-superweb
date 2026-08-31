@@ -23,7 +23,16 @@ import {
   setState,
   type ReportSection,
 } from "@/store";
-import { checkedPeriod, readCheck, readChecks, type CheckRow } from "../api";
+import { getMetric } from "@shared/metrics";
+import type { MetricId } from "@shared/types";
+import { formatExact } from "@/ui/format";
+import {
+  checkedPeriod,
+  readCheck,
+  readChecks,
+  readQuery,
+  type CheckRow,
+} from "../api";
 import { text, type ToolSpec } from "../adapter";
 import { asMetricId, asPeriod, asText, DIMENSION_ENUM, METRIC_ENUM } from "./args";
 import { asDimensionId } from "./args";
@@ -77,10 +86,54 @@ async function defaultSections(period: string): Promise<SectionRequest[]> {
     }));
 }
 
+/**
+ * The agent's own sentence, but never the agent's own number.
+ *
+ * `commentary` arrives from the model and nothing has verified it. A digit in
+ * it is a figure this tool did not produce and cannot stand behind, and a
+ * drafted section is the artifact a person copies, so a number that reached the
+ * page through prose would be the exact failure this project exists to catch.
+ * Prose without digits is opinion and passes through attributed.
+ */
+function safeCommentary(commentary: string | undefined): {
+  kept: string | null;
+  dropped: boolean;
+} {
+  if (!commentary) return { kept: null, dropped: false };
+  if (/\d/.test(commentary)) return { kept: null, dropped: true };
+  return { kept: commentary, dropped: false };
+}
+
+/** The canonical figure, read back from /api/query. Null when it did not answer. */
+async function figureFor(
+  metric: MetricId,
+  period: string,
+  request: SectionRequest,
+): Promise<string | null> {
+  const dimension = asDimensionId(request.dimension) ?? undefined;
+  const result = await readQuery({
+    metric,
+    period,
+    filters:
+      dimension && request.value ? { [dimension]: request.value } : undefined,
+  });
+  const row = result?.rows[0];
+  if (!row) return null;
+
+  const m = getMetric(metric);
+  const delta =
+    row.delta === undefined
+      ? "."
+      : `, ${row.delta >= 0 ? "up" : "down"} ${Math.abs(row.delta * 100).toFixed(1)} ` +
+        `per cent on the prior period.`;
+  return `${m.label} of ${formatExact(row.value, m.unit)}${delta}`;
+}
+
 function bodyFor(
   request: SectionRequest,
   check: CheckRow | null,
   period: string,
+  figure: string | null,
 ): DraftedSection {
   if (!check) {
     // Blocked, so the agent's commentary is dropped here too. Silence from the
@@ -127,15 +180,23 @@ function bodyFor(
         : ` ${check.plainLanguage}`
       : "";
 
+  // The figure leads, and this tool is the only thing that can put one here.
+  // A section that reached the page with no number is a section nobody can
+  // check, which is the same silence a blocked section carries and would make
+  // the three verdicts indistinguishable on screen.
   const opening =
-    request.commentary ??
+    figure ??
     (check.verdict === "ok"
-      ? `Every order line behind this section was counted for ${period}.`
-      : `This section covers ${period}.`);
+      ? `No figure is available: /api/query did not answer, so none was ` +
+        `invented. Every order line behind this section was counted for ${period}.`
+      : `No figure is available: /api/query did not answer, so none was ` +
+        `invented. This section covers ${period}.`);
+
+  const note = safeCommentary(request.commentary).kept;
 
   return {
     heading: request.heading,
-    body: opening + gap,
+    body: opening + gap + (note ? ` ${note}` : ""),
     verdict: check.verdict,
   };
 }
@@ -154,9 +215,14 @@ function startReport(): ToolSpec {
     execute: async () => {
       openReport();
       return text(
-        `The report is open on the page. Two tools have just been registered ` +
-          `for you: draft_report writes sections into it, and build_deck lays ` +
-          `the result out as slides.\n\n` +
+        // Never "these tools are now registered". registerTool and toolchange
+        // are asynchronous, so a return that asserts the inventory has already
+        // changed can be read before it has. Name the page state and the
+        // capability, and let the client re-read its own inventory.
+        `The report is open on the page. With it open, two more tools become ` +
+          `relevant: draft_report writes sections into it, and build_deck lays ` +
+          `the result out as slides. Re-read the available tools before ` +
+          `calling them.\n\n` +
           `draft_report runs a data quality check on every section before it ` +
           `writes one, and refuses to write a number that has not earned it. ` +
           `You do not have to pre-check each slice yourself; call it with the ` +
@@ -172,7 +238,8 @@ function draftReport(): ToolSpec {
     title: "Draft the report",
     description:
       "Write sections into the open report. Every section is checked against " +
-      "the pipeline before it is written: a section whose data is sound gets " +
+      "the pipeline before it is written, and every figure is read back from " +
+      "the site rather than taken from you: a section whose data is sound gets " +
       "its number, a section that is short gets its number with the gap " +
       "attached, and a section whose rows were never counted is held back with " +
       "no number at all. Call it with the sections you want; it will tell you " +
@@ -215,8 +282,10 @@ function draftReport(): ToolSpec {
               commentary: {
                 type: "string",
                 description:
-                  "Your own sentence about this section. Dropped entirely if " +
-                  "the section turns out to be blocked.",
+                  "Your own sentence about this section. It must contain no " +
+                  "figures: this tool reads the number back from the site " +
+                  "itself and will not write one it did not verify. Dropped " +
+                  "entirely if the section turns out to be blocked.",
               },
             },
             required: ["heading"],
@@ -246,7 +315,44 @@ function draftReport(): ToolSpec {
       const drafted: DraftedSection[] = [];
       const reasons: string[] = [];
 
-      for (const request of sections) {
+      // A section scoped to nothing is checked against the whole month, and a
+      // whole-month verdict pinned under a heading that says "Germany" is a
+      // wrong answer wearing a right one. Refuse the section instead: a
+      // malformed filter must never widen silently into a broader check.
+      const malformed: string[] = [];
+      const usable = sections.filter((r) => {
+        const named = r.dimension !== undefined || r.value !== undefined;
+        if (!named) return true;
+        if (r.dimension === undefined || r.value === undefined) {
+          malformed.push(
+            `${r.heading}: give both dimension and value, or neither. ` +
+              `Got ${r.dimension === undefined ? "value with no dimension" : "dimension with no value"}.`,
+          );
+          return false;
+        }
+        if (asDimensionId(r.dimension) === null) {
+          malformed.push(`${r.heading}: "${r.dimension}" is not a dimension.`);
+          return false;
+        }
+        return true;
+      });
+
+      if (usable.length === 0) {
+        return text(
+          `Nothing was drafted. Every section you passed was scoped in a way ` +
+            `this tool cannot check:\n${malformed.join("\n")}\n\n` +
+            `A section with no valid scope would be checked against the whole ` +
+            `of ${period}, and a month-wide verdict written under a heading ` +
+            `naming one slice is the failure this report exists to prevent. ` +
+            `Call draft_report again with a dimension and value on each ` +
+            `section, or omit sections entirely to draft one per evaluated ` +
+            `slice.`,
+        );
+      }
+
+      const ignoredCommentary: string[] = [];
+
+      for (const request of usable) {
         const dimension = asDimensionId(request.dimension) ?? undefined;
         const check = await readCheck({
           metric,
@@ -254,7 +360,21 @@ function draftReport(): ToolSpec {
           dimension,
           value: dimension ? request.value : undefined,
         });
-        const section = bodyFor(request, check.value, period);
+
+        // The verdict decides whether a figure is fetched at all. A blocked
+        // slice is never queried, so its number cannot reach this function and
+        // therefore cannot reach the page by any route, including a bug.
+        const publishable =
+          check.value !== null && check.value.verdict !== "blocked";
+        const figure = publishable
+          ? await figureFor(metric, period, request)
+          : null;
+
+        if (safeCommentary(request.commentary).dropped) {
+          ignoredCommentary.push(request.heading);
+        }
+
+        const section = bodyFor(request, check.value, period, figure);
         drafted.push(section);
 
         if (section.verdict !== "ok" && check.value) {
@@ -296,6 +416,20 @@ function draftReport(): ToolSpec {
           `report is showing what you committed, not its own preview.\n\n` +
           `${body}\n\n` +
           (reasons.length > 0 ? `Why:\n${reasons.join("\n")}\n\n` : "") +
+          (malformed.length > 0
+            ? `Not drafted at all, because the scope could not be read:\n` +
+              `${malformed.join("\n")}\n` +
+              `Each of those would otherwise have been checked against the ` +
+              `whole of ${period} and written under a heading naming one ` +
+              `slice.\n\n`
+            : "") +
+          (ignoredCommentary.length > 0
+            ? `Your commentary on ${ignoredCommentary.join(", ")} contained a ` +
+              `figure and was not written. Nothing verified it, and a number ` +
+              `that reaches the page through prose is exactly the number this ` +
+              `report exists to stop. Every figure above was read back from ` +
+              `the same endpoint the dashboard reads.\n\n`
+            : "") +
           (blocked.length > 0
             ? `${blocked.length} section${blocked.length === 1 ? " is" : "s are"} ` +
               `BLOCKED and carr${blocked.length === 1 ? "ies" : "y"} no figure ` +

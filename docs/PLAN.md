@@ -235,11 +235,12 @@ not what anyone wants. Do not "fix" it.
 
 ```ts
 return { content: [{ type: "text", text:
-  "Drafted 5 of 6 sections. The Europe section is BLOCKED: all 3,043 " +
-  "order lines behind net_revenue for this period lost their exchange " +
-  "rate, so there is no figure to publish. Online is DEGRADED, a quarter " +
-  "of its lines went the same way. Use explain_data_issue to tell the " +
-  "user why, then publish without Europe or wait for a reload."
+  "Drafted 5 of 9 sections. France, Germany, Italy and the Netherlands " +
+  "are BLOCKED: all 3,043 order lines behind net_revenue for this period " +
+  "lost their exchange rate, so there is no figure to publish for any of " +
+  "them. Online is DEGRADED, a quarter of its lines went the same way. " +
+  "Use explain_data_issue to tell the user why, then publish the rest or " +
+  "wait for a reload."
 }]};
 ```
 
@@ -316,8 +317,8 @@ draft_report({
 ### The verdict has three values, not two
 
 A verdict ranges over **metric + period + filter**, never metric + period alone.
-The FX gap hits Europe; North America is sound. A verdict that could not see the
-filter would block four good sections to protect one.
+The FX gap hits the four euro countries; North America is sound. A verdict that
+could not see the filter would block five good sections to protect four.
 
 | Verdict | Meaning | Renders as |
 |---|---|---|
@@ -330,26 +331,35 @@ filter would block four good sections to protect one.
 Measured against the source for `2023-11`, with sections scoped by
 `store.CountryCode`:
 
+One section per country the pipeline recorded a check for. There is no "Europe"
+grouping at any layer: `DimensionId` has no continent, `dim_store.country_name`
+has no such value, and `draft_report`'s `defaultSections` builds straight from
+the check file.
+
 | Section | Order lines | Unmatched | Verdict |
 |---|---|---|---|
-| Europe - DE, FR, IT, NL stores | 3,043 | 3,043 · 100.00% | `blocked` |
+| Germany | 1,739 | 1,739 · 100.00% | `blocked` |
+| Netherlands | 665 | 665 · 100.00% | `blocked` |
+| France | 410 | 410 · 100.00% | `blocked` |
+| Italy | 229 | 229 · 100.00% | `blocked` |
 | Online | 18,831 | 4,788 · 25.43% | `degraded` |
 | United States | 5,743 | 0 · 0.00% | `ok` |
 | Canada | 1,511 | 0 · 0.00% | `ok` |
 | United Kingdom | 1,082 | 0 · 0.00% | `ok` |
 | Australia | 874 | 0 · 0.00% | `ok` |
 
-Month-wide that is 7,831 unmatched lines of 31,084, or 25.19%.
+The four blocked countries total 3,043 lines. Month-wide that is 7,831 unmatched
+lines of 31,084, or 25.19%.
 
-This is better than the plan originally asked for. Four sections publish, one
-blocks, **and** one is genuinely degraded, so all three verdicts get exercised
-by real data instead of `degraded` sitting frozen into the contract and never
+This is better than the plan originally asked for. Four sections publish, four
+block, **and** one is genuinely degraded, so all three verdicts get exercised by
+real data instead of `degraded` sitting frozen into the contract and never
 rendering. Its rendering is no longer a decision to defer.
 
 **Scope sections by `store.CountryCode`, not `customer.Continent`.** Continent
 puts Great Britain in Europe, which mixes clean GBP revenue into the broken EUR
-slice and turns a clean 100% block into an ambiguous 75%. It also collapses six
-sections into three. The UK is its own section.
+slice and turns four clean 100% blocks into one ambiguous 75%. It also collapses
+nine sections into three. Every country is its own section.
 
 **Handle Online deliberately.** It is 18,831 of the month's 31,084 lines, so it
 can neither be ignored nor blocked wholesale without killing the biggest number
@@ -398,7 +408,7 @@ Keep both `explain_data_issue` and `trace_lineage` as separate tools - the agent
 | Time | | |
 |---|---|---|
 | **0:00** | *"Draft me the November revenue report for the exec review."* | Period `2023-11`. `start_report` → report opens → **tool count jumps 7 → 9 on screen** → `draft_report` |
-| **0:40** | Five sections fill in. Europe comes back **blocked**, Online comes back **degraded**. | *"I can't publish Europe - every order line behind it is missing its exchange rate for this month. Online is short about a quarter of its lines for the same reason, so its total is understated."* **Tool count jumps to 11** as the failed check registers the diagnostics |
+| **0:40** | Nine sections fill in. France, Germany, Italy and the Netherlands come back **blocked**, Online comes back **degraded**. | *"I can't publish France, Germany, Italy or the Netherlands - every order line behind them is missing its exchange rate for this month. Online is short about a quarter of its lines for the same reason, so its total is understated."* **Tool count jumps to 11** as the failed check registers the diagnostics |
 | **1:20** | *"What do you mean, missing?"* | `explain_data_issue` - plain language, no jargon. Publishes the other five with the Online gap flagged |
 | **2:00** | *"Make it a deck."* | `build_deck` → the slide outline, with a closing slide naming what was not published rather than dropping it silently |
 | **2:30** | Same question, technical depth | `trace_lineage` → the stage ladder, and 31,084 in · 23,253 out · **7,831 rejected** at the FX join |
