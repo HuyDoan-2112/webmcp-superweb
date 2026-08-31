@@ -32,6 +32,7 @@ import {
   type Sourced,
 } from "../api";
 import { text, type ToolSpec } from "../adapter";
+import { rowFields, textWithData } from "../structured";
 import { asDimensionId, asMetricId, asPeriod, asText, DIMENSION_ENUM, METRIC_ENUM } from "./args";
 
 /**
@@ -244,7 +245,9 @@ function checkDataTrust(): ToolSpec {
 
       const head = verdictLine(check, metric, period, dimension, value);
       if (!check.value) {
-        return text(
+        // No verdict key at all. Silence from the pipeline is not a passing
+        // check, and an agent branching on this must not be able to read one.
+        return textWithData(
           `${head}\n\nSlices the pipeline did evaluate for ${checkedPeriod()}: ` +
             (await readChecks(checkedPeriod())).value
               .map((c) =>
@@ -255,11 +258,35 @@ function checkDataTrust(): ToolSpec {
               .join(", ") +
             `.\n\nAsk again for one of those, or accept that this slice has no ` +
             `verdict and say so rather than publishing it.`,
+          {
+            tool: "check_data_trust",
+            metric,
+            period,
+            dimension,
+            value,
+            checked: false,
+            publishable: false,
+          },
         );
       }
 
-      return text(
-        `${head}\n\n${check.value.plainLanguage}\n\n${advice(check.value.verdict)}`,
+      const row = check.value;
+      return textWithData(
+        `${head}\n\n${row.plainLanguage}\n\n${advice(row.verdict)}`,
+        {
+          tool: "check_data_trust",
+          metric,
+          period,
+          dimension,
+          value,
+          checked: true,
+          verdict: row.verdict,
+          publishable: row.verdict !== "blocked",
+          ...rowFields(row.expectedRows, row.rejectedRows),
+          check: row.name,
+          runId: row.runId ?? checkedRunId(),
+          source: check.source,
+        },
       );
     },
   };

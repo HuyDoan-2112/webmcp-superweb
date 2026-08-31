@@ -34,6 +34,7 @@ import {
   type CheckRow,
 } from "../api";
 import { text, type ToolSpec } from "../adapter";
+import { rowFields, textWithData } from "../structured";
 import { asMetricId, asPeriod, asText, DIMENSION_ENUM, METRIC_ENUM } from "./args";
 import { asDimensionId } from "./args";
 
@@ -109,7 +110,7 @@ async function figureFor(
   metric: MetricId,
   period: string,
   request: SectionRequest,
-): Promise<string | null> {
+): Promise<{ sentence: string; value: number } | null> {
   const dimension = asDimensionId(request.dimension) ?? undefined;
   const result = await readQuery({
     metric,
@@ -126,14 +127,17 @@ async function figureFor(
       ? "."
       : `, ${row.delta >= 0 ? "up" : "down"} ${Math.abs(row.delta * 100).toFixed(1)} ` +
         `per cent on the prior period.`;
-  return `${m.label} of ${formatExact(row.value, m.unit)}${delta}`;
+  return {
+    sentence: `${m.label} of ${formatExact(row.value, m.unit)}${delta}`,
+    value: row.value,
+  };
 }
 
 function bodyFor(
   request: SectionRequest,
   check: CheckRow | null,
   period: string,
-  figure: string | null,
+  figure: { sentence: string; value: number } | null,
 ): DraftedSection {
   if (!check) {
     // Blocked, so the agent's commentary is dropped here too. Silence from the
@@ -185,7 +189,7 @@ function bodyFor(
   // check, which is the same silence a blocked section carries and would make
   // the three verdicts indistinguishable on screen.
   const opening =
-    figure ??
+    figure?.sentence ??
     (check.verdict === "ok"
       ? `No figure is available: /api/query did not answer, so none was ` +
         `invented. Every order line behind this section was counted for ${period}.`
@@ -314,6 +318,7 @@ function draftReport(): ToolSpec {
 
       const drafted: DraftedSection[] = [];
       const reasons: string[] = [];
+      const sectionData: Record<string, unknown>[] = [];
 
       // A section scoped to nothing is checked against the whole month, and a
       // whole-month verdict pinned under a heading that says "Germany" is a
@@ -377,6 +382,22 @@ function draftReport(): ToolSpec {
         const section = bodyFor(request, check.value, period, figure);
         drafted.push(section);
 
+        // A blocked section carries no `value` key at all, rather than a null
+        // or a zero. The dashboard renders Germany as $0 for this period, so a
+        // zero here would be indistinguishable from a real figure to anything
+        // reading the fields instead of the prose.
+        sectionData.push({
+          heading: section.heading,
+          dimension,
+          value: request.value,
+          verdict: section.verdict,
+          publishable: section.verdict !== "blocked",
+          figure: section.verdict === "blocked" ? undefined : figure?.value,
+          ...(check.value && section.verdict !== "blocked"
+            ? rowFields(check.value.expectedRows, check.value.rejectedRows)
+            : {}),
+        });
+
         if (section.verdict !== "ok" && check.value) {
           reasons.push(
             `${section.heading}: ${section.verdict.toUpperCase()}. ` +
@@ -410,7 +431,7 @@ function draftReport(): ToolSpec {
         )
         .join("\n\n");
 
-      return text(
+      return textWithData(
         `Drafted ${published.length + degraded.length} of ${drafted.length} ` +
           `sections for ${metric}, ${period}. They are on the page now: the ` +
           `report is showing what you committed, not its own preview.\n\n` +
@@ -447,6 +468,17 @@ function draftReport(): ToolSpec {
               `it is the only thing separating the number from a wrong one.\n\n`
             : "") +
           `Call build_deck to lay this out as slides.`,
+        {
+          tool: "draft_report",
+          metric,
+          period,
+          drafted: published.length + degraded.length,
+          requested: drafted.length,
+          sections: sectionData,
+          refusedScope: malformed.length > 0 ? malformed : undefined,
+          droppedCommentary:
+            ignoredCommentary.length > 0 ? ignoredCommentary : undefined,
+        },
       );
     },
   };
