@@ -63,6 +63,12 @@ export type CheckRow = {
   plainLanguage: string;
   /** The run that produced the data. Present when /api/trust answered. */
   runId?: string;
+  /**
+   * When that run finished, UTC. The audit question is not only whether the
+   * number passed its check, it is how old the answer is: a verdict from a run
+   * three weeks ago is a verdict about three-week-old data.
+   */
+  dataAsOf?: string;
 };
 
 export type QualityDoc = {
@@ -120,6 +126,7 @@ function fromTrustReport(report: TrustReport, slice: TrustSlice): CheckRow {
     rejectedRows: worst?.rejectedRows ?? 0,
     detail: worst?.detail ?? "",
     runId: report.runId,
+    dataAsOf: report.freshnessUtc,
     plainLanguage:
       report.plainLanguage ??
       (report.verdict === "ok"

@@ -34,7 +34,7 @@ import {
   type CheckRow,
 } from "../api";
 import { text, type ToolSpec } from "../adapter";
-import { rowFields, textWithData } from "../structured";
+import { rowFields, stamp, textWithData } from "../structured";
 import { asMetricId, asPeriod, asText, DIMENSION_ENUM, METRIC_ENUM } from "./args";
 import { asDimensionId } from "./args";
 
@@ -319,6 +319,9 @@ function draftReport(): ToolSpec {
       const drafted: DraftedSection[] = [];
       const reasons: string[] = [];
       const sectionData: Record<string, unknown>[] = [];
+      // Taken from the first check that answered, so the report says which
+      // pipeline run it is a report about.
+      let runFreshness: string | undefined;
 
       // A section scoped to nothing is checked against the whole month, and a
       // whole-month verdict pinned under a heading that says "Germany" is a
@@ -381,6 +384,7 @@ function draftReport(): ToolSpec {
 
         const section = bodyFor(request, check.value, period, figure);
         drafted.push(section);
+        runFreshness ??= check.value?.dataAsOf;
 
         // A blocked section carries no `value` key at all, rather than a null
         // or a zero. The dashboard renders Germany as $0 for this period, so a
@@ -472,6 +476,7 @@ function draftReport(): ToolSpec {
           tool: "draft_report",
           metric,
           period,
+          ...stamp(runFreshness),
           drafted: published.length + degraded.length,
           requested: drafted.length,
           sections: sectionData,

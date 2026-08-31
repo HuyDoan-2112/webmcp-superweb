@@ -47,6 +47,29 @@ export function textWithData(
   );
 }
 
+/**
+ * Two timestamps, and they answer different questions.
+ *
+ * `dataAsOf` is when the pipeline run that produced these numbers finished.
+ * That is the one an audit cares about: a passing verdict over three-week-old
+ * data is still a verdict about three-week-old data.
+ *
+ * `answeredAt` is when this tool ran. It is what lets someone reconstruct the
+ * order of events later, when the only record left is a report and a chat log.
+ *
+ * Neither is a signature and we do not offer one. A signature this page
+ * computed would prove nothing, because the spec already treats everything a
+ * page returns as untrusted content, and the agent holds no key of ours to
+ * check it against. What a person can actually verify is `runId` against
+ * /api/runs, which is a real audit trail rather than a cryptographic gesture.
+ */
+export function stamp(dataAsOf?: string): {
+  dataAsOf?: string;
+  answeredAt: string;
+} {
+  return { dataAsOf, answeredAt: new Date().toISOString() };
+}
+
 /** Row counts, or nothing when the session's answer depth withholds them. */
 export function rowFields(
   expectedRows: number,

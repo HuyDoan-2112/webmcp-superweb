@@ -32,7 +32,7 @@ import {
   type Sourced,
 } from "../api";
 import { text, type ToolSpec } from "../adapter";
-import { rowFields, textWithData } from "../structured";
+import { rowFields, stamp, textWithData } from "../structured";
 import { asDimensionId, asMetricId, asPeriod, asText, DIMENSION_ENUM, METRIC_ENUM } from "./args";
 
 /**
@@ -266,6 +266,7 @@ function checkDataTrust(): ToolSpec {
             value,
             checked: false,
             publishable: false,
+            ...stamp(),
           },
         );
       }
@@ -285,6 +286,7 @@ function checkDataTrust(): ToolSpec {
           ...rowFields(row.expectedRows, row.rejectedRows),
           check: row.name,
           runId: row.runId ?? checkedRunId(),
+          ...stamp(row.dataAsOf),
           source: check.source,
         },
       );
