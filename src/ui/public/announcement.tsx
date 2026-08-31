@@ -6,7 +6,9 @@
 // plainly. A ticker has the same risk, so it is mitigated rather than ignored:
 // hover slows it to a crawl, keyboard focus stops it, selecting a promotion
 // pins it, and under prefers-reduced-motion it never moves. Every claim stays
-// reachable, which is the property that actually mattered.
+// reachable, which is the property that actually mattered. Because it stops
+// when something is open, the detail card can be measured into place under the
+// promotion it belongs to and stay there.
 //
 // THE STRIP NEVER SHOWS A VERDICT. Painted verdict badges were built and
 // rejected: a page that already tells a shopper the number is bad makes
@@ -18,6 +20,7 @@
 // supplier's. That is why the tools over this carry untrustedContentHint:
 // false.
 
+import { useLayoutEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 import { useStore } from "@/hooks/use-store";
 import { selectPromotion, type Locale } from "@/store";
@@ -26,15 +29,45 @@ import { t } from "./i18n";
 
 const PROMOTIONS = readPromotions();
 
+/** Width of the open panel. Shared by the layout and the clamp that keeps it on screen. */
+const PANEL_WIDTH = 360;
+
 export function AnnouncementStrip() {
   const selected = useStore((s) => s.selectedPromotionCode);
   const locale = useStore((s) => s.locale);
   const day = today();
   const open = PROMOTIONS.find((p) => p.code === selected) ?? null;
 
+  const strip = useRef<HTMLDivElement>(null);
+  const [anchor, setAnchor] = useState<number | null>(null);
+
+  /**
+   * Line the panel up under the promotion it belongs to.
+   *
+   * Measured from the DOM rather than from a click, because check_promotion
+   * selects a promotion too and there is no pointer event to read in that case.
+   * The ticker is stopped whenever something is open, so one measurement holds.
+   */
+  useLayoutEffect(() => {
+    if (open === null || strip.current === null) {
+      setAnchor(null);
+      return;
+    }
+    const button = strip.current.querySelector(
+      `[aria-controls="promo-${open.code}"]:not([tabindex="-1"])`,
+    );
+    if (!(button instanceof HTMLElement)) return;
+    const left =
+      button.getBoundingClientRect().left -
+      strip.current.getBoundingClientRect().left;
+    const max = strip.current.clientWidth - PANEL_WIDTH;
+    setAnchor(Math.max(0, Math.min(left, Math.max(0, max))));
+  }, [open]);
+
   return (
     <section aria-label="Announcements" className="border-b">
       <div
+        ref={strip}
         className="ticker relative mx-auto w-full max-w-7xl"
         data-paused={open !== null}
       >
@@ -48,25 +81,24 @@ export function AnnouncementStrip() {
           </div>
         </div>
 
-        {/* Pinned under the whole strip rather than under one item, because the
-            item is moving and an anchored panel would slide off with it. Still
-            absolutely positioned: rendered in flow it pushed the catalogue down
-            the page on every click. */}
-        {open !== null && (
+        {/* A card under the promotion it belongs to, not a full width bar. It
+            lives outside .ticker-mask because that clips, and it is positioned
+            by measurement rather than by nesting for the same reason. Absolute,
+            so opening one does not push the catalogue down the page. */}
+        {open !== null && anchor !== null && (
           <div
             id={`promo-${open.code}`}
-            className="bg-background absolute inset-x-0 top-full z-20 border-b p-4 text-xs shadow-md"
+            className="bg-popover text-popover-foreground absolute top-full z-20 mt-1 rounded-lg border p-3 text-xs shadow-lg"
+            style={{ left: anchor, width: PANEL_WIDTH }}
           >
-            <div className="mx-auto w-full max-w-3xl px-4 sm:px-6">
-              <p className="text-muted-foreground">{open.body}</p>
-              <p className="mt-2">
-                <span className="text-muted-foreground">Claim. </span>
-                {open.claim.assertion}
-              </p>
-              <p className="text-muted-foreground mt-2 font-mono text-[11px]">
-                {open.code} · {open.validFrom} to {open.validTo}
-              </p>
-            </div>
+            <p className="text-muted-foreground">{open.body}</p>
+            <p className="mt-2">
+              <span className="text-muted-foreground">Claim. </span>
+              {open.claim.assertion}
+            </p>
+            <p className="text-muted-foreground mt-2 font-mono text-[11px]">
+              {open.code} · {open.validFrom} to {open.validTo}
+            </p>
           </div>
         )}
       </div>
