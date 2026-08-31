@@ -183,7 +183,7 @@ export function ProductDetail() {
 
           {variants.length > 1 && (
             <div className="mt-7">
-              <h2 className="text-muted-foreground mb-2.5 font-mono text-[10px] tracking-[0.14em] uppercase">
+              <h2 className="mb-2.5 text-sm font-medium">
                 {t(locale, "colourways")}
               </h2>
               {/* Picking a colour is selectProduct on that variant's key, which
@@ -197,7 +197,7 @@ export function ProductDetail() {
             </div>
           )}
 
-          <h2 className="text-muted-foreground mt-9 mb-2 font-mono text-[10px] tracking-[0.14em] uppercase">
+          <h2 className="mt-9 mb-3 text-sm font-medium">
             {t(locale, "about")}
           </h2>
           <div className="space-y-2 text-sm leading-relaxed">
@@ -209,17 +209,19 @@ export function ProductDetail() {
             {t(locale, "composedNote")}
           </p>
 
-          <h2 className="text-muted-foreground mt-9 mb-2 font-mono text-[10px] tracking-[0.14em] uppercase">
+          <h2 className="mt-9 mb-3 text-sm font-medium">
             {t(locale, "specifications")}
           </h2>
-          <dl className="border-t">
+          {/* Pairs in two columns rather than a rule under every row. A
+              hairline per row is the default that makes a spec sheet read as a
+              database dump; whitespace groups these just as well. */}
+          <dl className="grid grid-cols-1 gap-x-8 gap-y-3 sm:grid-cols-2">
             {specs.map((spec) => (
-              <div
-                key={spec.label}
-                className="grid grid-cols-[10rem_1fr] gap-4 border-b py-2.5 text-sm"
-              >
-                <dt className="text-muted-foreground">{spec.label}</dt>
-                <dd className="font-mono tabular-nums">{spec.value}</dd>
+              <div key={spec.label} className="min-w-0">
+                <dt className="text-muted-foreground text-xs">{spec.label}</dt>
+                <dd className="truncate font-mono text-sm tabular-nums">
+                  {spec.value}
+                </dd>
               </div>
             ))}
           </dl>
@@ -268,7 +270,7 @@ function VariantTable({
 }) {
   return (
     <div className="mt-9">
-      <h2 className="text-muted-foreground mb-2 font-mono text-[10px] tracking-[0.14em] uppercase">
+      <h2 className="mb-3 text-sm font-medium">
         {t(locale, "colourCount", { count: variants.length })}
       </h2>
       <table className="w-full border-t text-sm">
