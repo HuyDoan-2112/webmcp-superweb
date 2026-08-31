@@ -1,4 +1,10 @@
-import { BarChart3, FileText, GitBranch, Bird } from "lucide-react";
+import {
+  BarChart3,
+  FileText,
+  GitBranch,
+  MessageCircleQuestion,
+  Bird,
+} from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -19,6 +25,7 @@ const NAV: { view: View; title: string; icon: typeof BarChart3 }[] = [
   { view: "dashboard", title: "Dashboard", icon: BarChart3 },
   { view: "report", title: "Report", icon: FileText },
   { view: "lineage", title: "Lineage", icon: GitBranch },
+  { view: "enquiries", title: "Enquiries", icon: MessageCircleQuestion },
 ];
 
 /**

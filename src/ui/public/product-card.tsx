@@ -1,8 +1,10 @@
 import { useState } from "react";
+import { Heart } from "lucide-react";
 import type { Product } from "@shared/types";
 import type { ProductFamily } from "@/api";
 import { cn } from "@/lib/utils";
-import { selectProduct, type Locale } from "@/store";
+import { useStore } from "@/hooks/use-store";
+import { selectProduct, toggleWishlist, type Locale } from "@/store";
 import { formatPrice, swatchFor } from "./format";
 import { t } from "./i18n";
 import { ProductImage } from "./product-image";
@@ -96,6 +98,47 @@ export function SwatchRow({
 }
 
 /**
+ * Save or drop one product, by ProductKey.
+ *
+ * A plain sibling button rather than an overlay on the card's picture: the
+ * picture already sits inside the card's own open button, and a button inside
+ * a button is invalid markup that fights the outer click as much as it invites
+ * it.
+ */
+export function WishlistToggle({
+  productKey,
+  locale,
+  className,
+}: {
+  productKey: number;
+  locale: Locale;
+  className?: string;
+}) {
+  const saved = useStore((s) => s.wishlist.includes(productKey));
+
+  return (
+    <button
+      type="button"
+      aria-pressed={saved}
+      aria-label={t(locale, saved ? "removeFromWishlist" : "addToWishlist")}
+      onClick={(e) => {
+        e.stopPropagation();
+        toggleWishlist(productKey);
+      }}
+      className={cn(
+        "focus-visible:ring-ring flex size-7 shrink-0 items-center justify-center rounded-full transition-colors focus-visible:ring-2 focus-visible:outline-none",
+        saved
+          ? "text-foreground"
+          : "text-muted-foreground hover:text-foreground",
+        className,
+      )}
+    >
+      <Heart className={cn("size-4", saved && "fill-current")} />
+    </button>
+  );
+}
+
+/**
  * One product in the catalogue: every colourway of one thing, on one card.
  *
  * Which swatch is chosen is local state rather than store state, because it is
@@ -161,13 +204,14 @@ export function FamilyCard({
         </span>
       </button>
 
-      <div className="border-t px-4 py-3">
+      <div className="flex items-center justify-between gap-2 border-t px-4 py-3">
         <SwatchRow
           variants={family.variants}
           selected={index}
           onSelect={setIndex}
           locale={locale}
         />
+        <WishlistToggle productKey={variant.productKey} locale={locale} />
       </div>
     </div>
   );

@@ -39,6 +39,7 @@ import {
 import { fetchProducts } from "@/api";
 import { readStoreCountries } from "@/promotions";
 import { LOCALES, LOCALE_NAMES, t } from "./i18n";
+import { CustomerMenu } from "./customer-menu";
 
 /**
  * The public header.
@@ -259,6 +260,8 @@ export function PublicHeader() {
           </Select>
 
           <ThemeToggle />
+
+          <CustomerMenu locale={locale} />
 
           {/* Signing in asks who you are rather than silently making you the
               first seeded person. The three answer at different depths, and the

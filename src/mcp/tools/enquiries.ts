@@ -16,7 +16,11 @@
 
 import { getState, markEnquiryAnswered, type Enquiry } from "@/store";
 import { text, type ToolSpec } from "../adapter";
-import { stamp, textWithData } from "../structured";
+// No stamp() here. It emits answeredAt, meaning when the tool answered,
+// which in an enquiry collides with the enquiry's own answered flag: the
+// payload read "answered: false" beside "answeredAt", a contradiction to
+// anything branching on fields. sentUtc already carries the time.
+import { textWithData } from "../structured";
 
 const ENQUIRY_ACTIONS = ["list", "mark_answered"] as const;
 type EnquiryAction = (typeof ENQUIRY_ACTIONS)[number];
@@ -115,7 +119,6 @@ function listEnquiries(): ToolSpec {
             id,
             changed: true,
             answered: true,
-            ...stamp(),
           },
         );
       }

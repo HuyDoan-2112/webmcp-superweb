@@ -33,7 +33,11 @@ import {
 import { NO_PRODUCTS_ENDPOINT, readProduct } from "../api";
 import { resolveProduct } from "./catalog";
 import { text, type ToolSpec } from "../adapter";
-import { stamp, textWithData } from "../structured";
+// No stamp() here. It emits answeredAt, meaning when the tool answered,
+// which in an enquiry collides with the enquiry's own answered flag: the
+// payload read "answered: false" beside "answeredAt", a contradiction to
+// anything branching on fields. sentUtc already carries the time.
+import { textWithData } from "../structured";
 
 function money(value: number): string {
   return `$${value.toFixed(2)}`;
@@ -468,7 +472,6 @@ function sendEnquiryTool(): ToolSpec {
           productName,
           sentUtc: enquiry.sentUtc,
           answered: enquiry.answered,
-          ...stamp(),
         },
       );
     },

@@ -11,6 +11,7 @@ import {
 import { cn } from "@/lib/utils";
 import { useStore } from "@/hooks/use-store";
 import {
+  addToCart,
   selectProduct,
   setCatalogBrand,
   setCatalogCategory,
@@ -20,11 +21,18 @@ import {
 import { formatPrice, formatPriceRange, formatWeight } from "./format";
 import { describeProduct } from "./description";
 import { t } from "./i18n";
-import { AvailabilityTag, ColorChip, FamilyCard, SwatchRow } from "./product-card";
+import {
+  AvailabilityTag,
+  ColorChip,
+  FamilyCard,
+  SwatchRow,
+  WishlistToggle,
+} from "./product-card";
 import { ProductImage } from "./product-image";
 import { availabilityOf } from "./format";
 import { fetchProduct } from "@/api";
 import { useAsync } from "@/hooks/use-async";
+import { EnquiryForm } from "./enquiry-form";
 
 /**
  * One product, reached by store state rather than a route. `selectProduct(key)`
@@ -181,6 +189,24 @@ export function ProductDetail() {
             {t(locale, "availabilityNote")}
           </p>
 
+          <div className="mt-5 flex items-center gap-2">
+            <Button
+              type="button"
+              onClick={() =>
+                addToCart({
+                  productKey: product.productKey,
+                  productCode: product.productCode,
+                  name: family?.familyName ?? product.productName,
+                  color: product.color,
+                  price: product.price,
+                })
+              }
+            >
+              {t(locale, "addToCart")}
+            </Button>
+            <WishlistToggle productKey={product.productKey} locale={locale} />
+          </div>
+
           {variants.length > 1 && (
             <div className="mt-7">
               <h2 className="mb-2.5 text-sm font-medium">
@@ -233,6 +259,15 @@ export function ProductDetail() {
               locale={locale}
             />
           )}
+
+          <h2 className="mt-9 mb-3 text-sm font-medium">
+            {t(locale, "askAQuestion")}
+          </h2>
+          <EnquiryForm
+            productKey={product.productKey}
+            productName={family?.familyName ?? product.productName}
+            locale={locale}
+          />
         </div>
       </div>
 

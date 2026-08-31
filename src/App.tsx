@@ -8,6 +8,7 @@ import { useStore } from "@/hooks/use-store";
 import { Dashboard } from "@/ui/dashboard";
 import { Report } from "@/ui/report";
 import { Lineage } from "@/ui/lineage";
+import { Enquiries } from "@/ui/enquiries";
 import { PublicShell } from "@/ui/public/shell";
 
 /**
@@ -27,6 +28,7 @@ const TITLE: Record<string, string> = {
   dashboard: "Revenue",
   report: "Revenue report",
   lineage: "Lineage",
+  enquiries: "Customer enquiries",
 };
 
 function InternalShell() {
@@ -44,6 +46,7 @@ function InternalShell() {
           {view === "dashboard" && <Dashboard />}
           {view === "report" && <Report />}
           {view === "lineage" && <Lineage />}
+          {view === "enquiries" && <Enquiries />}
         </Main>
       </SidebarInset>
       <Toaster />

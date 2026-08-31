@@ -10,7 +10,7 @@ import type { Audience, DimensionId, Surface, TrustVerdict } from "@shared/types
 
 export type { Audience };
 
-export type View = "dashboard" | "report" | "lineage";
+export type View = "dashboard" | "report" | "lineage" | "enquiries";
 
 /**
  * Which face of the same origin is showing. Defined in shared/types.ts.
