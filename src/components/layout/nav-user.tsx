@@ -15,19 +15,16 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 import { getDisplayNameInitials } from "@/lib/utils";
-import { setSurface } from "@/store";
-
-// Placeholder until src/auth/users.ts is written. The demo session is identity,
-// not security - see docs/PLAN.md section 6.
-const DEMO_USERS = [
-  { name: "Maya Okonkwo", role: "Operations" },
-  { name: "Priya Raman", role: "Data Science" },
-  { name: "Tom Alvarez", role: "Data Platform" },
-];
+import { useStore } from "@/hooks/use-store";
+import { signIn, signOut } from "@/auth/switcher";
+import { DEMO_USERS } from "@/auth/users";
 
 export function NavUser() {
   const { isMobile } = useSidebar();
-  const user = DEMO_USERS[0];
+  // Whoever the cookie currently names. The audience in the store is written by
+  // signIn, so this follows the same value the server is answering at.
+  const audience = useStore((s) => s.audience);
+  const user = DEMO_USERS.find((u) => u.audience === audience) ?? DEMO_USERS[0];
 
   return (
     <SidebarMenu>
@@ -54,21 +51,28 @@ export function NavUser() {
             sideOffset={4}
           >
             <DropdownMenuLabel className="text-muted-foreground text-xs font-normal">
-              Signed in as
+              Answering as
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
+            {/* Switching person rewrites the cookie, so the next answer comes
+                back at that person's depth. Operations gets plain language,
+                Data Platform gets check names and row counts. Nobody is
+                refused anything. */}
             {DEMO_USERS.map((u) => (
-              <DropdownMenuItem key={u.name}>
+              <DropdownMenuItem key={u.id} onClick={() => signIn(u.id)}>
                 <div className="grid text-sm leading-tight">
-                  <span>{u.name}</span>
+                  <span>
+                    {u.name}
+                    {u.id === user.id ? " ." : ""}
+                  </span>
                   <span className="text-muted-foreground text-xs">{u.role}</span>
                 </div>
               </DropdownMenuItem>
             ))}
             <DropdownMenuSeparator />
-            {/* The way back to the public catalogue. Signing out drops the
-                internal tool set and leaves the small public one. */}
-            <DropdownMenuItem onClick={() => setSurface("public")}>
+            {/* The way back to the public catalogue. Signing out clears the
+                cookie and drops the internal tool set. */}
+            <DropdownMenuItem onClick={() => signOut()}>
               <LogOut className="size-4" />
               Sign out
             </DropdownMenuItem>

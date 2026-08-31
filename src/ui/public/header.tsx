@@ -16,7 +16,6 @@ import {
   setCatalogCategory,
   setCatalogSearch,
   setLocale,
-  setSurface,
   selectProduct,
   type Locale,
 } from "@/store";
@@ -26,6 +25,7 @@ import {
   CATALOG_SEARCH_FORM,
   respondToToolSubmit,
 } from "@/mcp/declarative";
+import { signIn } from "@/auth/switcher";
 import { fetchProducts } from "@/api";
 import { LOCALES, LOCALE_NAMES, t } from "./i18n";
 
@@ -58,9 +58,11 @@ import { LOCALES, LOCALE_NAMES, t } from "./i18n";
  * what that annotation exists for, so this one returns numbers and points at
  * `search_products` for the rows.
  *
- * "Staff sign in" is the demo beat: it calls setSurface("internal"), the page
- * becomes the dashboard, and the registered tool set swaps from the small
- * public one to the full internal one.
+ * "Staff sign in" is the demo beat. It calls signIn(), which writes the
+ * superweb_session cookie and moves the surface, so the page becomes the
+ * dashboard, the registered tool set swaps from the small public one to the
+ * full internal one, and every subsequent answer comes back at that person's
+ * depth instead of at catalogue depth.
  */
 export function PublicHeader() {
   const locale = useStore((s) => s.locale);
@@ -214,7 +216,7 @@ export function PublicHeader() {
 
           <ThemeToggle />
 
-          <Button onClick={() => setSurface("internal")}>
+          <Button onClick={() => signIn()}>
             <LogIn className="size-4" />
             <span className="hidden md:inline">{t(locale, "staffSignIn")}</span>
           </Button>

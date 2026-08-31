@@ -7,8 +7,13 @@ import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { ThemeProvider } from "@/context/theme-provider";
 import { App } from "@/App";
+import { restoreSession } from "@/auth/switcher";
 import { startModelContext } from "@/mcp/register";
 import "@/styles/index.css";
+
+// Before the first render, so a reload lands on the surface the cookie already
+// implies rather than flashing the catalogue and jumping.
+restoreSession();
 
 const rootElement = document.getElementById("root");
 if (!rootElement) throw new Error("#root not found");

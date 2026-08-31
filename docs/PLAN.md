@@ -484,13 +484,13 @@ The tool rank in §8 handles the tool half. This is everything else:
 Channel has moved off this list. It is the online store, the online store is
 the degraded section, and the degraded section is a third of the demo.
 
-One was taken, and not deliberately. **The identity switcher is not built.**
-`src/auth/session.ts`, `src/auth/switcher.ts` and `src/auth/users.ts` are two
-comment lines each and no code; `nav-user.tsx` hardcodes `DEMO_USERS[0]` behind
-a note saying it is a placeholder. Nothing writes the `superweb_session` cookie
-that `api/_lib/session.ts` reads, so the audience mechanism is live on the
-server and unreachable from the page. The server half is real and answers
-correctly when the cookie is sent by hand.
+One was taken and then given back. The identity switcher was unbuilt for most
+of the build: `src/auth/` was two comment lines per file and `nav-user.tsx`
+hardcoded `DEMO_USERS[0]`, so nothing wrote the `superweb_session` cookie that
+`api/_lib/session.ts` reads and the audience mechanism was live on the server
+and unreachable from the page. It is built now. `signIn` writes the cookie and
+moves the surface, the sidebar switches between the three seeded people, and
+`restoreSession` puts a reload back where the cookie already pointed.
 
 The rest of the list stands. The stage ladder and all eight registry
 dimensions are built. It stays live for the days that are left, and it

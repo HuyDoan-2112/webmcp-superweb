@@ -130,10 +130,12 @@ internal setter. The boundary that matters is server side. `api/_lib/session.ts`
 decides the depth of every answer and never refuses a question. Identity here is
 depth, not access.
 
-That mechanism works but the UI cannot reach it yet. Nothing writes the
-`superweb_session` cookie, so every request arrives anonymous and answers come
-back at catalogue depth. The varying depths are reachable by sending the cookie
-by hand. See docs/PLAN.md section 9.
+The switcher in the sidebar makes that visible. Ask `check_data_trust` about
+Germany as Maya in Operations and the answer is "completeness" and a sentence.
+Pick Tom on Data Platform from the same menu and the same tool, on the same
+question, comes back with `fx_rate_not_null` and 1,739 of 1,739 order lines.
+Nothing was refused in either case. Only the depth moved, and it moved because
+`signIn` rewrote one cookie that the server reads.
 
 The catalogue groups Contoso's 2,517 SKU rows into 885 product families, since
 one SKU per colourway means a nine-colour camera is nine rows at one price.
