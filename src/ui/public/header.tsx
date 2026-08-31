@@ -125,11 +125,11 @@ export function PublicHeader() {
 
   return (
     <header className="bg-background/85 sticky top-0 z-50 border-b backdrop-blur-md">
-      <div className="mx-auto flex h-16 w-full max-w-7xl items-center gap-3 px-4 sm:gap-5 sm:px-6">
+      <div className="mx-auto grid h-16 w-full max-w-7xl grid-cols-[auto_1fr] items-center gap-3 px-4 sm:gap-5 sm:px-6 lg:grid-cols-[1fr_auto_1fr]">
         <button
           type="button"
           onClick={() => selectProduct(null)}
-          className="focus-visible:ring-ring flex shrink-0 items-center gap-2.5 rounded-md focus-visible:ring-2 focus-visible:outline-none"
+          className="focus-visible:ring-ring flex w-fit shrink-0 items-center gap-2.5 rounded-md focus-visible:ring-2 focus-visible:outline-none"
         >
           <span className="bg-primary text-primary-foreground flex size-8 items-center justify-center rounded-md">
             <Bird className="size-4" />
@@ -142,7 +142,7 @@ export function PublicHeader() {
         <form
           {...CATALOG_SEARCH_FORM}
           onSubmit={onSubmit}
-          className="border-input bg-background focus-within:border-ring focus-within:ring-ring/50 mx-auto flex h-10 min-w-0 max-w-2xl flex-1 items-center rounded-lg border shadow-xs transition-[color,box-shadow] focus-within:ring-[3px] dark:bg-input/30"
+          className="border-input bg-background focus-within:border-ring focus-within:ring-ring/50 order-last col-span-2 flex h-10 w-full min-w-0 items-center rounded-lg border shadow-xs transition-[color,box-shadow] focus-within:ring-[3px] lg:order-none lg:col-span-1 lg:w-[34rem] lg:justify-self-center dark:bg-input/30"
         >
           <div className="relative min-w-0 flex-1">
             <Input
@@ -187,18 +187,21 @@ export function PublicHeader() {
           </button>
         </form>
 
-        <div className="flex shrink-0 items-center gap-1.5">
+        <div className="flex shrink-0 items-center gap-1 justify-self-end">
           <Select
             value={locale}
             onValueChange={(value) => setLocale(value as Locale)}
           >
+            {/* Icon only, and the same footprint as the theme toggle beside
+                it. The language name was the widest thing in this group and it
+                made the two utility controls read as different ranks. */}
             <SelectTrigger
               size="sm"
               aria-label={t(locale, "languageLabel")}
-              className="w-auto gap-1.5 sm:w-32"
+              className="hover:bg-accent hover:text-accent-foreground size-9 justify-center border-0 bg-transparent p-0 shadow-none [&>svg:last-child]:hidden dark:bg-transparent"
             >
               <Languages className="size-4 shrink-0" />
-              <span className="hidden sm:inline">
+              <span className="sr-only">
                 <SelectValue />
               </span>
             </SelectTrigger>
