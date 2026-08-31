@@ -1,56 +1,36 @@
-// The read seam between the tool layer and the pipeline's own answers.
-//
-// WHERE THE LINE IS, because CLAUDE.md says "a tool never queries data itself"
-// and this file calls fetch, and the next person to read both will think the
-// two contradict each other. They do not. The line has two halves:
-//
-//   A tool that MOVES THE PAGE must go through the store, never around it.
-//   Every setter a tool calls is one a click already calls, so the human and
-//   the agent share one state path and the page visibly moves when the agent
-//   acts. There is no second code path to keep honest.
-//
-//   A tool ANSWERING A QUESTION about data the page is already showing may read
-//   the same endpoint the page read. docs/PLAN.md section 5 specifies exactly
-//   this for the trust gate: per section, GET /api/query then GET /api/trust.
-//   The dashboard renders a verdict for the slice it is on; it cannot render a
-//   verdict for a slice nobody asked for, and the gate has to check every
-//   section before it writes one.
-//
-// Neither half may touch DuckDB or compose SQL. That is the thing the rule was
-// written to prevent, because a tool running its own query would just be a
-// badly hosted MCP server wearing a browser as a costume. There is no DuckDB
-// import here, no SQL, and no database connection.
-//
-// The endpoints answer under `npm run dev`, which serves api/ in process
-// and during the build week that is often not the case. So every reader tries
-// /api/* first and falls back to the committed artifact under data/meta/ that
-// the endpoint itself reads: api/_lib/trust.ts loads exactly this file. The
-// verdict therefore cannot change depending on whether the function was up, and
-// every tool that fell back says which source answered rather than passing an
-// artifact read off as a live one.
-//
-// This file does not import src/api.ts. That module is the UI's fetch layer and
-// says so at the top; the two stay separate so a change to the dashboard's
-// loading behaviour cannot silently change what a tool reports.
-//
-// Owner note: once /api is reliably up in the demo environment, delete the
-// fallbacks and the `source` field. Nothing else in src/mcp/ changes.
+// Tools reuse the UI's typed API client. UI-changing actions still go through
+// the store; data reads use the same endpoints the visible page uses. Pipeline
+// artifacts remain a read-only fallback when an endpoint is unavailable.
+
+import {
+  fetchLineage,
+  fetchMetric,
+  fetchProduct,
+  fetchProducts,
+  fetchRuns,
+  fetchTrust,
+  type ProductDetailResponse,
+  type ProductQueryArgs,
+  type ProductsResponse,
+} from "@/api";
+export type {
+  CatalogFacets,
+  ProductDetailResponse,
+  ProductFamily,
+  ProductQueryArgs,
+} from "@/api";
 
 import type {
   DimensionId,
   Lineage,
   MetricId,
-  MetricResult,
   PipelineRun,
-  Product,
   Promotion,
   PromotionOutcome,
   TrustReport,
   TrustVerdict,
 } from "@shared/types";
 
-// The pipeline artifacts, committed by etl/run.py. Three small JSON files,
-// about 8 KB together, so bundling them costs nothing measurable.
 import qualityChecks from "../../data/meta/quality_checks.json";
 import lineageDoc from "../../data/meta/lineage.json";
 import runsDoc from "../../data/meta/pipeline_runs.json";
@@ -95,30 +75,12 @@ const ARTIFACT_QUALITY = qualityChecks as unknown as QualityDoc;
 const ARTIFACT_LINEAGE = lineageDoc as unknown as Lineage;
 const ARTIFACT_RUNS = runsDoc as unknown as PipelineRun[];
 
-/**
- * Try one endpoint. Returns null on anything that is not a JSON 200, which
- * covers the stub endpoints today: the dev server answers /api/* with the SPA
- * index when nothing is proxying, and that is an HTML 200, not an answer.
- */
-async function tryJson<T>(path: string): Promise<T | null> {
+async function optional<T>(read: () => Promise<T>): Promise<T | null> {
   try {
-    const res = await fetch(path, { headers: { accept: "application/json" } });
-    if (!res.ok) return null;
-    const type = res.headers.get("content-type") ?? "";
-    if (!type.includes("json")) return null;
-    return (await res.json()) as T;
+    return await read();
   } catch {
     return null;
   }
-}
-
-function qs(params: Record<string, string | undefined>): string {
-  const search = new URLSearchParams();
-  for (const [key, value] of Object.entries(params)) {
-    if (value !== undefined && value !== "") search.set(key, value);
-  }
-  const body = search.toString();
-  return body === "" ? "" : `?${body}`;
 }
 
 // ------------------------------------------------------------------- trust
@@ -175,14 +137,15 @@ function fromTrustReport(report: TrustReport, slice: TrustSlice): CheckRow {
 export async function readCheck(
   slice: TrustSlice,
 ): Promise<Sourced<CheckRow | null>> {
-  const live = await tryJson<TrustReport>(
-    `/api/trust${qs({
+  const live = await optional(() =>
+    fetchTrust({
       metric: slice.metric,
       period: slice.period,
-      // Filters travel as dimension-named query keys, which is what
-      // api/_lib/compose.ts parseFilters reads.
-      ...(slice.dimension ? { [slice.dimension]: slice.value } : {}),
-    })}`,
+      filters:
+        slice.dimension && slice.value
+          ? { [slice.dimension]: slice.value }
+          : undefined,
+    }),
   );
   if (live && typeof live.verdict === "string") {
     return { value: fromTrustReport(live, slice), source: "api" };
@@ -244,7 +207,7 @@ export function recordedValues(dimension: DimensionId): string[] {
 // ----------------------------------------------------------------- lineage
 
 export async function readLineage(metric: MetricId): Promise<Sourced<Lineage>> {
-  const live = await tryJson<Lineage>(`/api/lineage${qs({ metric })}`);
+  const live = await optional(() => fetchLineage(metric));
   if (live) return { value: live, source: "api" };
   return { value: ARTIFACT_LINEAGE, source: "pipeline artifact" };
 }
@@ -252,18 +215,19 @@ export async function readLineage(metric: MetricId): Promise<Sourced<Lineage>> {
 // -------------------------------------------------------------------- runs
 
 export async function readRuns(): Promise<Sourced<PipelineRun[]>> {
-  const live = await tryJson<PipelineRun[]>("/api/runs");
-  if (live) return { value: live, source: "api" };
+  const live = await optional(fetchRuns);
+  if (live) return { value: live.runs, source: "api" };
   return { value: ARTIFACT_RUNS, source: "pipeline artifact" };
 }
 
 // ------------------------------------------------------------------- query
 
 /**
- * Metric values. api/query.ts is a stub, so this returns null today and every
- * caller says plainly that the figure is not available rather than inventing
- * one. A tool that guesses a number is the exact failure this project exists
- * to surface.
+ * Metric values, read back from the same endpoint the dashboard reads.
+ *
+ * Null when /api/query does not answer, and every caller then says plainly that
+ * the figure is not available rather than inventing one. A tool that guesses a
+ * number is the exact failure this project exists to surface.
  */
 export type QueryRow = {
   label?: string;
@@ -278,13 +242,13 @@ export async function readQuery(params: {
   dimension?: DimensionId;
   filters?: Record<string, string>;
 }): Promise<{ rows: QueryRow[]; source: ReadSource } | null> {
-  const live = await tryJson<MetricResult>(
-    `/api/query${qs({
+  const live = await optional(() =>
+    fetchMetric({
       metric: params.metric,
       period: params.period,
       dimension: params.dimension,
-      ...params.filters,
-    })}`,
+      filters: params.filters,
+    }),
   );
   if (!live || !Array.isArray(live.rows)) return null;
   return { rows: live.rows, source: "api" };
@@ -298,118 +262,20 @@ export const NO_QUERY_ENDPOINT =
   "data quality is real and comes from the pipeline run that produced the " +
   "current data.";
 
-// ---------------------------------------------------------------- products
-
-/**
- * The public catalogue, read from the same endpoint the catalogue page reads.
- *
- * This is the second half of the boundary at the top of this file. A tool must
- * not hold its own copy of the product list: it did once, 24 hardcoded rows
- * against the page's 885 families, and the agent and the page disagreed about
- * what the shop stocked. One endpoint, one answer, or the whole argument for
- * driving the UI collapses.
- *
- * The types below mirror what api/products.ts composes, and are declared here
- * rather than imported from src/api.ts so the tool layer and the dashboard's
- * fetch layer stay separable. `Product` itself comes from the frozen contract.
- */
-
-export type Facet = { label: string; n: number };
-
-export type PriceBand = { min: number | null; max: number | null; n: number };
-
-/**
- * A product as the catalogue shows it: every colourway of one thing.
- *
- * Contoso ships one row per colourway, so 2,517 SKUs are 885 products. Tool
- * output has to say "products with colourways" and never "lines", because the
- * page says products and the two must agree word for word.
- */
-export type ProductFamily = {
-  familyKey: string;
-  familyName: string;
-  brand: string;
-  manufacturer: string;
-  categoryName: string;
-  subCategoryName: string;
-  priceMin: number;
-  priceMax: number;
-  colors: string[];
-  variants: Product[];
-};
-
-export type CatalogFacets = {
-  categories: Facet[];
-  brands: Facet[];
-  subcategories: Facet[];
-  /** Folded to lower case, because the data records both "Blue" and "blue". */
-  colors: Facet[];
-  priceBands: PriceBand[];
-};
-
-export type ProductsResponse = {
-  families: ProductFamily[];
-  /** How many families match. Not how many this page returned. */
-  total: number;
-  offset: number;
-  limit: number;
-  facets: CatalogFacets;
-};
-
-export type ProductDetailResponse = {
-  product: Product;
-  family: ProductFamily;
-  related: ProductFamily[];
-};
-
-/** Exactly the arguments src/ui/public/catalog.tsx passes. */
-export type ProductQueryArgs = {
-  search?: string;
-  category?: string | null;
-  brand?: string | null;
-  subcategory?: string | null;
-  color?: string | null;
-  minPrice?: number | null;
-  maxPrice?: number | null;
-  offset?: number;
-  limit?: number;
-};
-
-function productQs(args: ProductQueryArgs): string {
-  const search = new URLSearchParams();
-  for (const [key, value] of Object.entries(args)) {
-    if (value === undefined || value === null || value === "") continue;
-    search.set(key, String(value));
-  }
-  const body = search.toString();
-  return body === "" ? "" : `?${body}`;
-}
-
-/**
- * Read the catalogue. Returns null when the endpoint did not answer, so the
- * caller can say the shop is unreachable rather than report a count of zero,
- * which would read as "we stock nothing".
- */
 export async function readProducts(
   args: ProductQueryArgs,
 ): Promise<ProductsResponse | null> {
-  const body = await tryJson<ProductsResponse>(
-    `/api/products${productQs(args)}`,
-  );
+  const body = await optional(() => fetchProducts(args));
   return body && Array.isArray(body.families) ? body : null;
 }
 
-/** One SKU by product key, with its whole family and its neighbours. */
 export async function readProduct(
   productKey: number,
 ): Promise<ProductDetailResponse | null> {
-  const body = await tryJson<ProductDetailResponse>(
-    `/api/products?productKey=${encodeURIComponent(String(productKey))}`,
-  );
+  const body = await optional(() => fetchProduct(productKey));
   return body && body.product ? body : null;
 }
 
-/** How many products match, without pulling a page of rows back. */
 export async function countProducts(
   args: ProductQueryArgs,
 ): Promise<number | null> {
@@ -417,20 +283,11 @@ export async function countProducts(
   return body ? body.total : null;
 }
 
-/** One sentence for when the catalogue endpoint is down. */
 export const NO_PRODUCTS_ENDPOINT =
   "The catalogue did not answer, so there is no count to report and none will " +
   "be invented. /api/products is what the page itself reads, so the visitor " +
   "is most likely looking at an error too. Say so rather than describing a " +
   "catalogue you cannot see.";
-
-
-// ------------------------------------------------------------- promotions
-//
-// The record itself lives in src/promotions.ts, which both lanes read. Only the
-// join belongs here, because reading the check that governs a claim is a read
-// through the seam and that is what this module is.
-
 export { findPromotion, isLive, readPromotions } from "@/promotions";
 
 /**
