@@ -6,7 +6,7 @@ import { selectProduct, type Locale } from "@/store";
 import { formatPrice, swatchFor } from "./format";
 import { t } from "./i18n";
 import { ProductImage } from "./product-image";
-import { availabilityOf, type Availability } from "./format";
+import type { Availability } from "./format";
 
 const DOT: Record<Availability, string> = {
   inStock: "bg-emerald-500",
@@ -114,7 +114,7 @@ export function FamilyCard({
   const variant = family.variants[Math.min(index, family.variants.length - 1)];
 
   return (
-    <div className="group bg-card hover:border-foreground/25 flex flex-col overflow-hidden rounded-xl border transition-all hover:-translate-y-0.5 hover:shadow-md">
+    <div className="group bg-card hover:border-foreground/25 flex flex-col overflow-hidden rounded-lg border transition-all hover:-translate-y-0.5 hover:shadow-md">
       <button
         type="button"
         onClick={() => selectProduct(variant.productKey)}
@@ -127,11 +127,11 @@ export function FamilyCard({
             color={variant.color}
             productCode={variant.productCode}
           />
-          <span className="bg-background/85 text-foreground absolute start-3 top-3 rounded px-1.5 py-0.5 font-mono text-[10px] tracking-[0.16em] tabular-nums backdrop-blur-sm">
+          <span className="bg-background/85 text-foreground absolute start-3 top-3 rounded-md px-1.5 py-0.5 font-mono text-[10px] tracking-[0.16em] tabular-nums backdrop-blur-sm">
             {variant.productCode}
           </span>
           {family.variants.length > 1 && (
-            <span className="bg-background/85 text-muted-foreground absolute end-3 top-3 rounded px-1.5 py-0.5 font-mono text-[10px] tabular-nums backdrop-blur-sm">
+            <span className="bg-background/85 text-muted-foreground absolute end-3 top-3 rounded-md px-1.5 py-0.5 font-mono text-[10px] tabular-nums backdrop-blur-sm">
               {t(locale, "colourCount", { count: family.variants.length })}
             </span>
           )}
@@ -157,7 +157,6 @@ export function FamilyCard({
                     price: formatPrice(family.priceMin, locale),
                   })}
             </span>
-            <AvailabilityTag availability={availabilityOf(variant)} locale={locale} />
           </span>
         </span>
       </button>
@@ -177,7 +176,7 @@ export function FamilyCard({
 /** Matches the card's shape while the catalogue loads. */
 export function ProductCardSkeleton() {
   return (
-    <div className="bg-card flex flex-col overflow-hidden rounded-xl border">
+    <div className="bg-card flex flex-col overflow-hidden rounded-lg border">
       <div className="bg-muted aspect-[4/3] animate-pulse" />
       <div className="flex flex-col gap-2 border-t p-4">
         <div className="bg-muted h-2.5 w-1/2 animate-pulse rounded" />

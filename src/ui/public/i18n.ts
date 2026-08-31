@@ -89,6 +89,8 @@ const STRINGS = {
     about: "About this product",
     composedNote:
       "Assembled from this line's catalogue record, field by field. Not supplier copy.",
+    availabilityNote:
+      "Illustrative. The catalogue records no stock level, so this is derived from the product code.",
     composedOne:
       "{name} is a {subcategory} line from {brand}, made by {manufacturer} and listed under {category}.",
     composedOneSameMaker:
@@ -158,6 +160,8 @@ const STRINGS = {
     about: "Sobre este producto",
     composedNote:
       "Redactado a partir de la ficha de catálogo de esta referencia, campo a campo. No es texto del proveedor.",
+    availabilityNote:
+      "Orientativo. El catálogo no registra existencias, por lo que se deriva del código de producto.",
     composedOne:
       "{name} es una referencia de {subcategory} de {brand}, fabricada por {manufacturer} y clasificada en {category}.",
     composedOneSameMaker:
@@ -228,6 +232,8 @@ const STRINGS = {
     about: "À propos de ce produit",
     composedNote:
       "Rédigé à partir de la fiche catalogue de cette référence, champ par champ. Ce n'est pas un texte du fournisseur.",
+    availabilityNote:
+      "Indicatif. Le catalogue n'enregistre aucun stock, ceci est déduit du code produit.",
     composedOne:
       "{name} est une référence {subcategory} de {brand}, fabriquée par {manufacturer} et classée dans {category}.",
     composedOneSameMaker:
@@ -298,6 +304,8 @@ const STRINGS = {
     about: "Über dieses Produkt",
     composedNote:
       "Aus dem Katalogdatensatz dieser Position zusammengesetzt, Feld für Feld. Kein Herstellertext.",
+    availabilityNote:
+      "Richtwert. Der Katalog führt keinen Lagerbestand, dies wird aus dem Produktcode abgeleitet.",
     composedOne:
       "{name} ist eine {subcategory}-Position von {brand}, hergestellt von {manufacturer} und geführt unter {category}.",
     composedOneSameMaker:
@@ -371,6 +379,8 @@ const STRINGS = {
     about: "この商品について",
     composedNote:
       "この品番のカタログ記録から項目ごとに組み立てた説明です。メーカーの宣伝文ではありません。",
+    availabilityNote:
+      "参考値。カタログに在庫情報はなく、製品コードから導いた表示です。",
     composedOne:
       "{name} は {brand} の {subcategory} 商品で、製造は {manufacturer}、分類は {category} です。",
     composedOneSameMaker:

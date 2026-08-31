@@ -53,7 +53,7 @@ export function ProductDetail() {
     return (
       <div className="mx-auto w-full max-w-7xl px-4 py-8 sm:px-6">
         <div className="grid gap-8 lg:grid-cols-2">
-          <div className="bg-muted aspect-[4/3] w-full animate-pulse rounded-xl" />
+          <div className="bg-muted aspect-[4/3] w-full animate-pulse rounded-lg" />
           <div className="flex flex-col gap-3">
             {Array.from({ length: 7 }, (_, i) => (
               <div key={i} className="bg-muted h-5 w-full animate-pulse rounded" />
@@ -123,7 +123,7 @@ export function ProductDetail() {
             color={product.color}
             productCode={product.productCode}
             size="detail"
-            className="rounded-xl border"
+            className="rounded-lg border"
           />
         </div>
 
@@ -172,6 +172,14 @@ export function ProductDetail() {
               className="text-muted-foreground text-xs"
             />
           </div>
+          {/* Contoso records no stock, so this is derived from the product key
+              and says so. A page that refuses to publish an unverified revenue
+              figure cannot quietly print an invented stock level. The grid card
+              dropped the badge entirely, because a card has no room to carry
+              this sentence with it. */}
+          <p className="text-muted-foreground mt-1.5 text-xs italic">
+            {t(locale, "availabilityNote")}
+          </p>
 
           {variants.length > 1 && (
             <div className="mt-7">
@@ -328,7 +336,7 @@ function Breadcrumb({
           setCatalogCategory(product.categoryName);
           selectProduct(null);
         }}
-        className="hover:text-foreground rounded px-1 underline-offset-4 hover:underline"
+        className="hover:text-foreground rounded-md px-1 underline-offset-4 hover:underline"
       >
         {product.categoryName}
       </button>
@@ -340,7 +348,7 @@ function Breadcrumb({
           setCatalogSubcategory(product.subCategoryName);
           selectProduct(null);
         }}
-        className="hover:text-foreground rounded px-1 underline-offset-4 hover:underline"
+        className="hover:text-foreground rounded-md px-1 underline-offset-4 hover:underline"
       >
         {product.subCategoryName}
       </button>
