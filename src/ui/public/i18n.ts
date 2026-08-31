@@ -93,6 +93,9 @@ const STRINGS = {
       "Illustrative. The catalogue records no stock level, so this is derived from the product code.",
     promoOnNow: "On now",
     promoFrom: "Starts {date}",
+    showMore: "Show {count} more",
+    showLess: "Show fewer",
+    removeFilter: "Remove {label}",
     composedOne:
       "{name} is a {subcategory} line from {brand}, made by {manufacturer} and listed under {category}.",
     composedOneSameMaker:
@@ -166,6 +169,9 @@ const STRINGS = {
       "Orientativo. El catálogo no registra existencias, por lo que se deriva del código de producto.",
     promoOnNow: "En curso",
     promoFrom: "Desde el {date}",
+    showMore: "Ver {count} más",
+    showLess: "Ver menos",
+    removeFilter: "Quitar {label}",
     composedOne:
       "{name} es una referencia de {subcategory} de {brand}, fabricada por {manufacturer} y clasificada en {category}.",
     composedOneSameMaker:
@@ -240,6 +246,9 @@ const STRINGS = {
       "Indicatif. Le catalogue n'enregistre aucun stock, ceci est déduit du code produit.",
     promoOnNow: "En cours",
     promoFrom: "À partir du {date}",
+    showMore: "Voir {count} de plus",
+    showLess: "Voir moins",
+    removeFilter: "Retirer {label}",
     composedOne:
       "{name} est une référence {subcategory} de {brand}, fabriquée par {manufacturer} et classée dans {category}.",
     composedOneSameMaker:
@@ -314,6 +323,9 @@ const STRINGS = {
       "Richtwert. Der Katalog führt keinen Lagerbestand, dies wird aus dem Produktcode abgeleitet.",
     promoOnNow: "Läuft jetzt",
     promoFrom: "Ab {date}",
+    showMore: "{count} weitere anzeigen",
+    showLess: "Weniger anzeigen",
+    removeFilter: "{label} entfernen",
     composedOne:
       "{name} ist eine {subcategory}-Position von {brand}, hergestellt von {manufacturer} und geführt unter {category}.",
     composedOneSameMaker:
@@ -391,6 +403,9 @@ const STRINGS = {
       "参考値。カタログに在庫情報はなく、製品コードから導いた表示です。",
     promoOnNow: "開催中",
     promoFrom: "{date} から",
+    showMore: "他 {count} 件を表示",
+    showLess: "表示を減らす",
+    removeFilter: "{label} を外す",
     composedOne:
       "{name} は {brand} の {subcategory} 商品で、製造は {manufacturer}、分類は {category} です。",
     composedOneSameMaker:

@@ -1,4 +1,4 @@
-import { useEffect, useSyncExternalStore } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import {
   ChevronDown,
   ChevronLeft,
@@ -6,6 +6,7 @@ import {
   SearchX,
   SlidersHorizontal,
   TriangleAlert,
+  X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -113,15 +114,6 @@ export function Catalog() {
     if (data && page > pages) setCatalogPage(pages);
   }, [data, page, pages]);
 
-  const isFiltered =
-    query.trim() !== "" ||
-    filters.category !== null ||
-    filters.brand !== null ||
-    filters.subcategory !== null ||
-    filters.color !== null ||
-    filters.minPrice !== null ||
-    filters.maxPrice !== null;
-
   return (
     <div className="mx-auto grid w-full max-w-7xl gap-8 px-4 py-8 sm:px-6 lg:grid-cols-[13rem_1fr] lg:gap-10">
       {/* min-w-0 on both columns, or the tab strip's own width sets the width
@@ -141,11 +133,17 @@ export function Catalog() {
           </summary>
 
           <div className="mt-4 lg:mt-0">
+            <ActiveFilters
+              filters={filters}
+              locale={locale}
+              className="mb-5"
+            />
             <Facet
               label={t(locale, "category")}
               options={categories}
               active={filters.category}
               onSelect={setCatalogCategory}
+              locale={locale}
             />
             {/* Only the subcategories under the chosen category are worth
                 offering, and with no category chosen there are forty of them.
@@ -157,6 +155,7 @@ export function Catalog() {
                 options={subcategories}
                 active={filters.subcategory}
                 onSelect={setCatalogSubcategory}
+                locale={locale}
                 className="mt-7"
               />
             )}
@@ -165,6 +164,7 @@ export function Catalog() {
               options={brands}
               active={filters.brand}
               onSelect={setCatalogBrand}
+              locale={locale}
               className="mt-7"
             />
             <Facet
@@ -172,6 +172,7 @@ export function Catalog() {
               options={colors}
               active={filters.color}
               onSelect={setCatalogColor}
+              locale={locale}
               format={titleCase}
               swatch
               className="mt-7"
@@ -183,16 +184,6 @@ export function Catalog() {
               locale={locale}
               className="mt-7"
             />
-            {isFiltered && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={clearCatalogFilters}
-                className="mt-5 -ms-2"
-              >
-                {t(locale, "clearFilters")}
-              </Button>
-            )}
           </div>
         </details>
       </aside>
@@ -461,11 +452,109 @@ function PriceFacet({
   );
 }
 
+/**
+ * What is currently narrowing the grid, as removable chips.
+ *
+ * Before this the applied filters were only visible by opening every collapsed
+ * section, and the only way to drop one was to find it again in a list of
+ * sixteen. Each chip clears exactly one facet, which is the move people
+ * actually make: they over-narrow, then back off by one.
+ */
+function ActiveFilters({
+  filters,
+  locale,
+  className,
+}: {
+  filters: CatalogFilters;
+  locale: Locale;
+  className?: string;
+}) {
+  const chips: { key: string; label: string; clear: () => void }[] = [];
+  if (filters.category !== null)
+    chips.push({
+      key: "category",
+      label: filters.category,
+      clear: () => setCatalogCategory(null),
+    });
+  if (filters.subcategory !== null)
+    chips.push({
+      key: "subcategory",
+      label: filters.subcategory,
+      clear: () => setCatalogSubcategory(null),
+    });
+  if (filters.brand !== null)
+    chips.push({
+      key: "brand",
+      label: filters.brand,
+      clear: () => setCatalogBrand(null),
+    });
+  if (filters.color !== null)
+    chips.push({
+      key: "color",
+      label: titleCase(filters.color),
+      clear: () => setCatalogColor(null),
+    });
+  if (filters.minPrice !== null || filters.maxPrice !== null)
+    chips.push({
+      key: "price",
+      label: priceRangeLabel(filters.minPrice, filters.maxPrice, locale),
+      clear: () => setCatalogPriceRange(null, null),
+    });
+
+  if (chips.length === 0) return null;
+
+  return (
+    <div className={className}>
+      <div className="flex flex-wrap gap-1.5">
+        {chips.map((chip) => (
+          <button
+            key={chip.key}
+            type="button"
+            onClick={chip.clear}
+            className="bg-secondary text-secondary-foreground hover:bg-secondary/70 focus-visible:ring-ring inline-flex max-w-full items-center gap-1 rounded-md py-1 ps-2 pe-1.5 text-xs transition-colors focus-visible:ring-2 focus-visible:outline-none"
+          >
+            <span className="min-w-0 truncate">{chip.label}</span>
+            <X className="size-3 shrink-0 opacity-60" aria-hidden="true" />
+            {/* Names the one facet this removes. "Clear filters" here would tell
+                a screen reader the button does what the link beside it does. */}
+            <span className="sr-only">
+              {t(locale, "removeFilter", { label: chip.label })}
+            </span>
+          </button>
+        ))}
+        {chips.length > 1 && (
+          <button
+            type="button"
+            onClick={clearCatalogFilters}
+            className="text-muted-foreground hover:text-foreground focus-visible:ring-ring rounded-md px-2 py-1 text-xs underline-offset-4 hover:underline focus-visible:ring-2 focus-visible:outline-none"
+          >
+            {t(locale, "clearFilters")}
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function priceRangeLabel(
+  min: number | null,
+  max: number | null,
+  locale: Locale,
+): string {
+  if (min !== null && max !== null)
+    return `${formatPrice(min, locale)} to ${formatPrice(max, locale)}`;
+  if (min !== null) return t(locale, "priceFrom", { price: formatPrice(min, locale) });
+  return `${formatPrice(max ?? 0, locale)} and under`;
+}
+
+const FACET_VISIBLE = 7;
+
 function Facet({
   label,
   options,
   active,
   onSelect,
+  locale,
   format,
   swatch,
   className,
@@ -474,12 +563,26 @@ function Facet({
   options: readonly FacetCount[];
   active: string | null;
   onSelect: (value: string | null) => void;
+  locale: Locale;
   /** Presentation only. The value handed to the setter is the server's. */
   format?: (value: string) => string;
   swatch?: boolean;
   className?: string;
 }) {
+  const [expanded, setExpanded] = useState(false);
   if (options.length === 0) return null;
+
+  // The selected value is always shown, even when it sits in the hidden tail.
+  // A filter you cannot see is a filter you cannot turn off.
+  const overflow = options.length - FACET_VISIBLE;
+  const shown =
+    expanded || overflow <= 1
+      ? options
+      : options
+          .slice(0, FACET_VISIBLE)
+          .concat(
+            options.slice(FACET_VISIBLE).filter((o) => o.label === active),
+          );
   return (
     <details open className={cn("group border-t pt-3", className)}>
       <summary className="mb-2 flex cursor-pointer list-none items-center justify-between gap-2 text-sm font-medium [&::-webkit-details-marker]:hidden">
@@ -492,7 +595,7 @@ function Facet({
         </span>
       </summary>
       <div className="flex flex-wrap gap-1.5 lg:flex-col lg:flex-nowrap lg:items-stretch lg:gap-0.5">
-        {options.map(({ label: option, n }) => {
+        {shown.map(({ label: option, n }) => {
           const isActive = active === option;
           return (
             <button
@@ -524,6 +627,17 @@ function Facet({
             </button>
           );
         })}
+        {overflow > 1 && (
+          <button
+            type="button"
+            onClick={() => setExpanded((v) => !v)}
+            className="text-muted-foreground hover:text-foreground focus-visible:ring-ring mt-0.5 rounded-md px-2 py-1 text-start text-xs underline-offset-4 hover:underline focus-visible:ring-2 focus-visible:outline-none"
+          >
+            {expanded
+              ? t(locale, "showLess")
+              : t(locale, "showMore", { count: String(overflow) })}
+          </button>
+        )}
       </div>
     </details>
   );
