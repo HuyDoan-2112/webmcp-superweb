@@ -105,7 +105,14 @@ export function composeQuery(q: MetricQuery): Composed {
   }
   select.push(`${metric.sql} AS value`);
 
-  const limit = Math.min(Math.max(q.limit ?? 100, 1), 500);
+  // `?? 100` only replaces null and undefined, so a non-numeric ?limit= arrives
+  // as NaN, survives the clamp, and reaches SQL as the literal text "LIMIT NaN".
+  // DuckDB then throws a Binder Error, which is not a QueryError, so a bad
+  // input turns into a 500 instead of the 400 every other bad input gets.
+  const requested = Number(q.limit ?? 100);
+  const limit = Number.isFinite(requested)
+    ? Math.min(Math.max(requested, 1), 500)
+    : 100;
 
   const sql = [
     `SELECT ${select.join(", ")}`,

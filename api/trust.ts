@@ -7,7 +7,7 @@
 import { getMetric } from "../shared/metrics.js";
 import type { TrustReport } from "../shared/types.js";
 import { isMetricId, parseFilters } from "./_lib/compose.js";
-import { fail, json, params } from "./_lib/http.js";
+import { fail, params, privateJson } from "./_lib/http.js";
 import { getSession, wantsTechnicalDetail } from "./_lib/session.js";
 import { checksFor, verdictFor } from "./_lib/trust.js";
 import { latestRun } from "./_lib/runs.js";
@@ -48,7 +48,7 @@ export async function GET(request: Request): Promise<Response> {
     plainLanguage: verdict === "ok" ? undefined : worst?.plainLanguage,
   };
 
-  return json({
+  return privateJson({
     ...report,
     metricLabel: getMetric(metricId).label,
   });

@@ -4,8 +4,26 @@
   "outputDirectory": "dist",
   "framework": "vite",
   "functions": {
-    "api/*.ts": {
-      "includeFiles": "data/**"
+    "api/query.ts": {
+      "includeFiles": "data/gold/**"
+    },
+    "api/chart.ts": {
+      "includeFiles": "data/gold/**"
+    },
+    "api/products.ts": {
+      "includeFiles": "data/gold/**"
+    },
+    "api/trust.ts": {
+      "includeFiles": "data/meta/**"
+    },
+    "api/runs.ts": {
+      "includeFiles": "data/meta/**"
+    },
+    "api/lineage.ts": {
+      "includeFiles": "data/meta/**"
+    },
+    "api/metrics.ts": {
+      "includeFiles": "data/meta/**"
     }
   }
 }

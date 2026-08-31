@@ -24,9 +24,12 @@ let cached: Promise<CheckFile> | null = null;
 
 export async function loadChecks(): Promise<CheckFile> {
   if (!cached) {
-    cached = readFile(dataPath("meta", "quality_checks.json"), "utf8").then(
-      (text) => JSON.parse(text) as CheckFile,
-    );
+    cached = readFile(dataPath("meta", "quality_checks.json"), "utf8")
+      .then((text) => JSON.parse(text) as CheckFile)
+      // Matches loadRuns. A missing or corrupt artifact must not throw out of
+      // GET as a raw 500 when every other failure here answers as ApiError.
+      // No checks means no verdict, which the trust endpoint already handles.
+      .catch(() => ({ runId: "", period: "", checks: [] }) as CheckFile);
   }
   return cached;
 }
