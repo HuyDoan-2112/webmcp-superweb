@@ -3,8 +3,7 @@ import type { Product } from "@shared/types";
 import type { ProductFamily } from "@/api";
 import { cn } from "@/lib/utils";
 import { selectProduct, type Locale } from "@/store";
-import { formatPrice, formatWeight, swatchFor } from "./format";
-import { colourSentence } from "./description";
+import { formatPrice, swatchFor } from "./format";
 import { t } from "./i18n";
 import { ProductImage } from "./product-image";
 import { availabilityOf, type Availability } from "./format";
@@ -115,7 +114,7 @@ export function FamilyCard({
   const variant = family.variants[Math.min(index, family.variants.length - 1)];
 
   return (
-    <div className="group bg-card hover:border-foreground/25 flex flex-col overflow-hidden rounded-xl border transition-colors">
+    <div className="group bg-card hover:border-foreground/25 flex flex-col overflow-hidden rounded-xl border transition-all hover:-translate-y-0.5 hover:shadow-md">
       <button
         type="button"
         onClick={() => selectProduct(variant.productKey)}
@@ -138,7 +137,7 @@ export function FamilyCard({
           )}
         </span>
 
-        <span className="flex flex-1 flex-col gap-1.5 border-t p-4">
+        <span className="flex flex-1 flex-col gap-1 border-t p-4">
           <span className="text-muted-foreground font-mono text-[10px] tracking-[0.12em] uppercase">
             {family.categoryName} / {family.subCategoryName}
           </span>
@@ -147,36 +146,29 @@ export function FamilyCard({
           </span>
           <span className="text-muted-foreground text-xs">{family.brand}</span>
 
-          <span className="text-muted-foreground line-clamp-2 mt-1 text-xs leading-relaxed">
-            {colourSentence(family.colors, locale)}
-          </span>
-
-          <span className="text-muted-foreground mt-auto flex flex-wrap items-center gap-x-3 gap-y-1 pt-3 text-xs">
-            <AvailabilityTag availability={availabilityOf(variant)} locale={locale} />
-            <span className="font-mono tabular-nums">
-              {formatWeight(variant.weight, variant.weightUnit, locale)}
+          {/* The price is the thing a buyer scans for, so it sits with the name
+              rather than in a strip under the swatches. The colour sentence
+              that used to be here said what the swatches below already show. */}
+          <span className="mt-3 flex items-baseline justify-between gap-2">
+            <span className="font-mono text-base font-semibold tabular-nums">
+              {family.priceMin === family.priceMax
+                ? formatPrice(family.priceMin, locale)
+            : t(locale, "priceFrom", {
+                    price: formatPrice(family.priceMin, locale),
+                  })}
             </span>
+            <AvailabilityTag availability={availabilityOf(variant)} locale={locale} />
           </span>
         </span>
       </button>
 
-      <div className="flex items-center justify-between gap-3 border-t px-4 py-3">
+      <div className="border-t px-4 py-3">
         <SwatchRow
           variants={family.variants}
           selected={index}
           onSelect={setIndex}
           locale={locale}
         />
-        {/* All but 27 families are one price across their colours. Those 27 say
-            "from", so the number on the card is never one a colour cannot be
-            bought at. */}
-        <span className="shrink-0 text-end font-mono text-sm font-semibold tabular-nums">
-          {family.priceMin === family.priceMax
-            ? formatPrice(family.priceMin, locale)
-            : t(locale, "priceFrom", {
-                price: formatPrice(family.priceMin, locale),
-              })}
-        </span>
       </div>
     </div>
   );
@@ -186,7 +178,7 @@ export function FamilyCard({
 export function ProductCardSkeleton() {
   return (
     <div className="bg-card flex flex-col overflow-hidden rounded-xl border">
-      <div className="bg-muted aspect-[8/5] animate-pulse" />
+      <div className="bg-muted aspect-[4/3] animate-pulse" />
       <div className="flex flex-col gap-2 border-t p-4">
         <div className="bg-muted h-2.5 w-1/2 animate-pulse rounded" />
         <div className="bg-muted h-3.5 w-full animate-pulse rounded" />

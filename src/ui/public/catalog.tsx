@@ -223,7 +223,7 @@ export function Catalog() {
             <EmptyDescription>{error}</EmptyDescription>
           </Empty>
         ) : loading ? (
-          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             {Array.from({ length: 6 }, (_, i) => (
               <ProductCardSkeleton key={i} />
             ))}
@@ -247,7 +247,7 @@ export function Catalog() {
           </Empty>
         ) : (
           <>
-            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
               {families.map((family) => (
                 <FamilyCard
                   key={family.familyKey}

@@ -127,7 +127,7 @@ export function ProductImage({
         alt={name}
         loading="lazy"
         onError={() => setFailedCode(productCode)}
-        className={cn("aspect-[8/5] w-full object-cover", className)}
+        className={cn("aspect-[4/3] w-full object-cover", className)}
       />
     );
   }
@@ -139,15 +139,15 @@ export function ProductImage({
     <div
       aria-hidden="true"
       className={cn(
-        "relative isolate flex aspect-[8/5] items-center justify-center overflow-hidden transition-[background-image] duration-300",
+        "relative isolate flex aspect-[4/3] items-center justify-center overflow-hidden transition-[background-image] duration-300",
         className,
       )}
       style={
         {
           "--tint": swatchFor(color).fill,
           backgroundImage:
-            `linear-gradient(${angle}deg, color-mix(in oklab, var(--tint) 46%, var(--card)) 0%, ` +
-            "color-mix(in oklab, var(--tint) 9%, var(--card)) 100%)",
+            `linear-gradient(${angle}deg, color-mix(in oklab, var(--tint) 68%, var(--card)) 0%, ` +
+            "color-mix(in oklab, var(--tint) 16%, var(--card)) 100%)",
         } as React.CSSProperties
       }
     >
@@ -168,7 +168,7 @@ export function ProductImage({
         strokeLinejoin="round"
         className={cn(
           "text-foreground/55 relative",
-          size === "detail" ? "size-28" : "size-14",
+          size === "detail" ? "size-32" : "size-20",
         )}
       >
         <Glyph />
