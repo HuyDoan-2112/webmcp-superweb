@@ -79,8 +79,6 @@ export type State = {
   metricId: string;
   filters: Filters;
   audience: Audience | null;
-  /** Set once the metric registry has loaded. Tools register after this. */
-  metricsLoaded: boolean;
   /** True once a trust check has failed, which registers the diagnostic tools. */
   hasFailedCheck: boolean;
   reportOpen: boolean;
@@ -106,8 +104,6 @@ export type State = {
   catalogPage: number;
   /** ProductKey of the open product, or null for the grid. */
   selectedProductKey: number | null;
-  /** True while /api/products is in flight. */
-  catalogLoading: boolean;
   /**
    * Which promotion is open on the announcement strip, by code, or null.
    *
@@ -126,7 +122,6 @@ const initial: State = {
   metricId: "net_revenue",
   filters: { country: null, category: null, channel: null },
   audience: null,
-  metricsLoaded: false,
   hasFailedCheck: false,
   reportOpen: false,
   breakdownDimension: "country",
@@ -136,7 +131,6 @@ const initial: State = {
   catalogFilters: NO_CATALOG_FILTERS,
   catalogPage: 1,
   selectedProductKey: null,
-  catalogLoading: false,
   selectedPromotionCode: null,
 };
 
@@ -191,10 +185,6 @@ export function setReportSections(reportSections: ReportSection[]): void {
   setState({ reportSections, reportOpen: true, view: "report" });
 }
 
-export function clearReport(): void {
-  setState({ reportSections: [] });
-}
-
 export function setBreakdownDimension(breakdownDimension: DimensionId): void {
   setState({ breakdownDimension });
 }
@@ -231,9 +221,9 @@ export function openReport(): void {
 // in Japanese can put the page into Japanese rather than the site guessing from
 // an Accept-Language header, and the human sees the switch happen.
 //
-// Enum values for the category and brand schemas come from CATEGORIES and
-// BRANDS in src/ui/public/sample-products.ts, both derived from the data rather
-// than hardcoded, so the agent cannot typo a facet that does not exist.
+// Enum values for the category and brand schemas come from the catalogue's own
+// facet counts, read live from /api/products rather than hardcoded, so the
+// agent cannot typo a facet that does not exist.
 //
 // setSurface is deliberately not a tool. Signing in is the human's move, and it
 // is what swaps the registered tool set from the public one to the internal one.
@@ -249,9 +239,16 @@ export function setLocale(locale: Locale): void {
   setState({ locale });
 }
 
-/** Open one promotion on the announcement strip, or null to close it. */
+/**
+ * Open one promotion on the announcement strip, or null to close it.
+ *
+ * Closes any open product for the same reason every other setter here does:
+ * the strip only renders while `selectedProductKey` is null, so setting a code
+ * without this would leave check_promotion telling an agent the promotion is
+ * open on the page while the strip is not even in the DOM.
+ */
 export function selectPromotion(code: string | null): void {
-  setState({ selectedPromotionCode: code });
+  setState({ selectedPromotionCode: code, selectedProductKey: null });
 }
 
 /**
@@ -337,7 +334,3 @@ export function selectProduct(selectedProductKey: number | null): void {
   setState({ selectedProductKey });
 }
 
-/** Flip the catalogue into its loading state. Replaced by the /api/query call. */
-export function setCatalogLoading(catalogLoading: boolean): void {
-  setState({ catalogLoading });
-}

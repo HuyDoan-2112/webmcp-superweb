@@ -13,13 +13,13 @@
 
 import { DEMO_PERIOD } from "@shared/metrics";
 import { getState, setFilters, setMetric, setPeriod, setView, type View } from "@/store";
-import { recordedValues } from "../api";
+import { readProducts, recordedValues } from "../api";
 import { text, type ToolSpec } from "../adapter";
 import { asMetricId, asPeriod, METRIC_ENUM } from "./args";
 
 const VIEWS: View[] = ["dashboard", "report", "lineage"];
 
-function filterDashboard(): ToolSpec {
+function filterDashboard(categories: string[]): ToolSpec {
   return {
     name: "filter_dashboard",
     title: "Move the dashboard",
@@ -51,10 +51,17 @@ function filterDashboard(): ToolSpec {
         },
         category: {
           type: "string",
+          // recordedValues("category") is empty by design: the pipeline only
+          // evaluates checks for country and channel. The categories are read
+          // from the catalogue instead, so this field is still constrained to
+          // values that exist rather than being free text that silently
+          // filters the dashboard down to nothing.
+          ...(categories.length > 0 ? { enum: ["", ...categories] } : {}),
           description:
             "Narrow to one product category. Empty string drops the filter. " +
             "Not available on order_count, which is counted per order rather " +
-            "than per line.",
+            "than per line. No quality check is recorded per category, so " +
+            "check_data_trust answers by country and channel only.",
         },
         view: {
           type: "string",
@@ -91,6 +98,15 @@ function filterDashboard(): ToolSpec {
       for (const key of ["country", "channel", "category"] as const) {
         const raw = args[key];
         if (typeof raw !== "string") continue;
+        // A category the catalogue does not have would filter the dashboard
+        // down to nothing while this tool reported that the page had moved.
+        // Refuse instead of moving, the same way an unknown metric does.
+        if (key === "category" && raw !== "" && categories.length > 0 && !categories.includes(raw)) {
+          return text(
+            `"${raw}" is not a category in the catalogue, so nothing moved. ` +
+              `The categories are: ${categories.join(", ")}.`,
+          );
+        }
         setFilters({ [key]: raw === "" ? null : raw });
         moved.push(raw === "" ? `${key} filter dropped` : `${key} ${raw}`);
       }
@@ -127,6 +143,13 @@ function filterDashboard(): ToolSpec {
   };
 }
 
-export function viewTools(): ToolSpec[] {
-  return [filterDashboard()];
+/**
+ * Async for the same reason publicTools is: the category enum is read from the
+ * catalogue before anything registers, so the schema carries real values. A
+ * probe that fails costs the enum, not the tool.
+ */
+export async function viewTools(): Promise<ToolSpec[]> {
+  const probe = await readProducts({ limit: 1 });
+  const categories = probe ? probe.facets.categories.map((c) => c.label) : [];
+  return [filterDashboard(categories)];
 }

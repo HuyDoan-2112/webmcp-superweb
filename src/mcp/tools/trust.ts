@@ -20,7 +20,7 @@
 
 import { getMetric } from "@shared/metrics";
 import type { LineageNode, MetricId, TrustVerdict } from "@shared/types";
-import { setState, setView } from "@/store";
+import { setFilters, setMetric, setPeriod, setState, setView } from "@/store";
 import {
   checkedPeriod,
   checkedRunId,
@@ -119,7 +119,8 @@ function advice(verdict: TrustVerdict): string {
       `Do not publish this figure. It is not low, it is incomplete, and it ` +
       `reads as entirely ordinary. Call explain_data_issue to get one sentence ` +
       `you can say to a non-technical person, and trace_lineage to show where ` +
-      `it broke. Both tools have just been registered for you.`
+      `it broke. The page now carries a failed check, so those two are ` +
+      `relevant here; re-read the available tools before calling them.`
     );
   if (verdict === "degraded")
     return (
@@ -170,11 +171,11 @@ function checkDataTrust(): ToolSpec {
       },
       required: ["metric"],
     },
-    // Not read only, and this is the one that is easy to get wrong by eye. It
-    // reads a verdict and renders nothing, but a non-ok verdict sets
-    // hasFailedCheck, which registers explain_data_issue and trace_lineage.
-    // Changing which tools exist is a change to the environment, so the hint
-    // has to say false even though no figure on the page moves.
+    // Not read only, twice over. It moves the dashboard to the slice it
+    // checked, so the verdict and the figure on screen are about one thing
+    // rather than two. And a non-ok verdict sets hasFailedCheck, which makes
+    // explain_data_issue and trace_lineage relevant: changing which tools
+    // exist is itself a change to the environment.
     annotations: { readOnlyHint: false, untrustedContentHint: false },
     execute: async (args) => {
       const metric = asMetricId(args.metric);
@@ -185,6 +186,27 @@ function checkDataTrust(): ToolSpec {
       const period = asPeriod(args.period);
       const dimension = asDimensionId(args.dimension) ?? undefined;
       const value = asText(args.value);
+
+      // A dimension the registry does not know would fall through to undefined
+      // and quietly become a whole-period check. Refuse: a month-wide verdict
+      // returned to an agent that asked about one slice is a wrong answer that
+      // looks like a right one.
+      if (args.dimension !== undefined && dimension === undefined) {
+        return text(
+          `"${args.dimension}" is not a dimension, so nothing was checked. ` +
+            `Dropping it would have checked the whole of ${period} and ` +
+            `answered as though it were your slice. Call describe_metric to ` +
+            `see which axes ${metric} splits by.`,
+        );
+      }
+
+      if (value && !dimension) {
+        return text(
+          `value "${value}" was given with no dimension, so there is no axis ` +
+            `to apply it on and nothing was checked. Pass dimension as well, ` +
+            `for example dimension "country" with value "${value}".`,
+        );
+      }
 
       if (dimension && !value) {
         const all = await readChecks(period);
@@ -201,6 +223,18 @@ function checkDataTrust(): ToolSpec {
       }
 
       const check = await readCheck({ metric, period, dimension, value });
+
+      // Move the page to the slice that was checked, so the verdict in the
+      // agent's reply and the figure in front of the person are about the same
+      // thing. A chat answer naming Germany while the screen still shows the
+      // whole month is two different claims that look like one.
+      setMetric(metric);
+      setPeriod(period);
+      setFilters({
+        country: dimension === "country" ? (value ?? null) : null,
+        channel: dimension === "channel" ? (value ?? null) : null,
+        category: dimension === "category" ? (value ?? null) : null,
+      });
 
       if (check.value && check.value.verdict !== "ok") {
         // A failed check is what registers explain_data_issue and trace_lineage.
@@ -257,7 +291,7 @@ function explainDataIssue(): ToolSpec {
       required: [],
     },
     // Read only, verified by inspection: this calls no store setter and moves
-    // nothing on screen. Five tools in the whole set qualify.
+    // nothing on screen. Only the tools that read without moving the page qualify.
     annotations: { readOnlyHint: true, untrustedContentHint: false },
     execute: async (args) => {
       const metric = asMetricId(args.metric) ?? "net_revenue";
@@ -361,10 +395,21 @@ function traceLineage(): ToolSpec {
       setView("lineage");
 
       const failed = lineage.value.nodes.find((n) => n.failed);
+      // The pipeline records one chain, against net_revenue. Reporting it under
+      // another metric's name would be this project's own failure mode: a
+      // number presented as traced when nothing traced it.
+      const recorded = lineage.value.metric as MetricId;
+      const note =
+        metric === recorded
+          ? ""
+          : `The chain below was recorded against ${recorded}, not ${metric}. ` +
+            `Nothing is traced for ${metric} on its own.` +
+            coverageNote(metric, recorded);
       return text(
         `The lineage ladder is now open on the page. Read it upward: the ` +
           `dashboard number is at the top and the system it came from is at ` +
           `the bottom.\n\n` +
+          (note ? `${note}\n\n` : "") +
           lineage.value.nodes.map(stageLine).join("\n") +
           `\n` +
           (latest

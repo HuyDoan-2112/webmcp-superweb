@@ -195,7 +195,17 @@ async function narrowestConstraint(state: State): Promise<string> {
  * have an agent tell a visitor we do not stock something during an outage.
  */
 type Resolution =
-  | { kind: "found"; detail: ProductDetailResponse }
+  | {
+      kind: "found";
+      detail: ProductDetailResponse;
+      /**
+       * Set when no code, key or exact name matched and the closest text hit
+       * was taken instead. Callers must say so before quoting any figure. A
+       * dashboard built on "do not report an unverified thing as fact" cannot
+       * quietly answer about a different product than the one asked for.
+       */
+      guessedFrom?: string;
+    }
   | { kind: "missing" }
   | { kind: "unreachable" };
 
@@ -236,11 +246,13 @@ async function resolveProduct(identifier: string): Promise<Resolution> {
   }
 
   // No exact hit. Take the best text match rather than refusing, because an
-  // agent asking for "Contoso Coffee Maker" should land on it.
+  // agent asking for "Contoso Coffee Maker" should land on it. Tagged as a
+  // guess so the caller discloses it rather than reporting it as the thing
+  // that was asked for.
   const first = found?.families[0]?.variants[0];
   if (first) {
     const detail = await readProduct(first.productKey);
-    if (detail) return { kind: "found", detail };
+    if (detail) return { kind: "found", detail, guessedFrom: trimmed };
   }
 
   return found ? { kind: "missing" } : { kind: "unreachable" };
@@ -384,8 +396,15 @@ function getProduct(): ToolSpec {
       selectProduct(detail.product.productKey);
 
       const { product, family, related } = detail;
+      const guess = resolution.guessedFrom
+        ? `Nothing is identified by "${resolution.guessedFrom}" exactly. This ` +
+          `is the closest text match, not a confirmed hit, so say so before ` +
+          `you quote anything below. To check, call search_products with the ` +
+          `same words and read the codes back.\n\n`
+        : "";
       return text(
-        `Opened ${family.familyName} on the page, showing the ` +
+        guess +
+          `Opened ${family.familyName} on the page, showing the ` +
           `${product.color} colourway.\n\n` +
           `product code   ${product.productCode}\n` +
           `product key    ${product.productKey}\n` +
@@ -469,7 +488,7 @@ function compareProducts(): ToolSpec {
           (x): x is { id: string; r: Extract<Resolution, { kind: "found" }> } =>
             x.r.kind === "found",
         )
-        .map(({ id, r }) => ({ id, detail: r.detail }));
+        .map(({ id, r }) => ({ id, detail: r.detail, guessedFrom: r.guessedFrom }));
       const missing = resolved
         .filter(({ r }) => r.kind !== "found")
         .map(({ id }) => id);
@@ -484,10 +503,14 @@ function compareProducts(): ToolSpec {
       }
 
       const rows = found
-        .map(({ detail }) => {
+        .map(({ detail, guessedFrom }) => {
           const { product, family } = detail;
           return (
-            `${product.productCode}\n` +
+            `${product.productCode}` +
+            (guessedFrom
+              ? `  (closest text match for "${guessedFrom}", not an exact hit)`
+              : "") +
+            `\n` +
             `  name         ${family.familyName}\n` +
             `  brand        ${product.brand}\n` +
             `  category     ${product.categoryName} / ${product.subCategoryName}\n` +

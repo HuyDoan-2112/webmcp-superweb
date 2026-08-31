@@ -154,7 +154,7 @@ function listMetrics(): ToolSpec {
       "other tools will accept.",
     inputSchema: { type: "object", properties: {}, required: [] },
     // Read only, verified by inspection: this calls no store setter and moves
-    // nothing on screen. Five tools in the whole set qualify.
+    // nothing on screen. Only the tools that read without moving the page qualify.
     annotations: { readOnlyHint: true, untrustedContentHint: false },
     execute: async () =>
       text(
@@ -363,7 +363,7 @@ function describeMetric(): ToolSpec {
       required: ["metric"],
     },
     // Read only, verified by inspection: this calls no store setter and moves
-    // nothing on screen. Five tools in the whole set qualify.
+    // nothing on screen. Only the tools that read without moving the page qualify.
     annotations: { readOnlyHint: true, untrustedContentHint: false },
     execute: async (args) => {
       const metric = asMetricId(args.metric);
