@@ -9,7 +9,7 @@ import type { Audience, Session, User } from "../../shared/types.js";
 /** The seeded people at Kestrel Supply Co. */
 export const USERS: User[] = [
   { id: "maya", name: "Maya Okonkwo", role: "Operations", audience: "ops" },
-  { id: "priya", name: "Priya Raman", role: "Data Science", audience: "analyst" },
+  { id: "priya", name: "Priya Raman", role: "Owner", audience: "analyst" },
   { id: "tom", name: "Tom Alvarez", role: "Data Platform", audience: "engineer" },
 ];
 

@@ -13,7 +13,7 @@ import type { User } from "@shared/types";
 
 export const DEMO_USERS: User[] = [
   { id: "maya", name: "Maya Okonkwo", role: "Operations", audience: "ops" },
-  { id: "priya", name: "Priya Raman", role: "Data Science", audience: "analyst" },
+  { id: "priya", name: "Priya Raman", role: "Owner", audience: "analyst" },
   { id: "tom", name: "Tom Alvarez", role: "Data Platform", audience: "engineer" },
 ];
 

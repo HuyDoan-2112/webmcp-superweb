@@ -70,11 +70,18 @@ export function NavUser() {
               </DropdownMenuItem>
             ))}
             <DropdownMenuSeparator />
-            {/* The way back to the public catalogue. Signing out clears the
-                cookie and drops the internal tool set. */}
+            {/* A customer is not a fourth staff account, it is the anonymous
+                visitor on the same origin. Signing out clears the cookie, drops
+                the internal tools and leaves the public catalogue set, which is
+                the whole two-surfaces argument in one menu item. */}
             <DropdownMenuItem onClick={() => signOut()}>
               <LogOut className="size-4" />
-              Sign out
+              <div className="grid text-sm leading-tight">
+                <span>Customer</span>
+                <span className="text-muted-foreground text-xs">
+                  The public catalogue
+                </span>
+              </div>
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
