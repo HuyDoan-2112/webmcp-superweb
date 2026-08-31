@@ -134,23 +134,17 @@ export function PublicHeader() {
           <span className="bg-primary text-primary-foreground flex size-8 items-center justify-center rounded-md">
             <Bird className="size-4" />
           </span>
-          <span className="hidden text-start leading-tight sm:grid">
-            <span className="text-sm font-semibold tracking-tight">
-              Kestrel Supply Co.
-            </span>
-            <span className="text-muted-foreground font-mono text-[10px] tracking-[0.14em] uppercase">
-              {t(locale, "tradeCatalogue")}
-            </span>
+          <span className="hidden text-sm font-semibold tracking-tight sm:block">
+            Kestrel Supply Co.
           </span>
         </button>
 
         <form
           {...CATALOG_SEARCH_FORM}
           onSubmit={onSubmit}
-          className="flex min-w-0 flex-1 items-center gap-1.5"
+          className="border-input bg-background focus-within:border-ring focus-within:ring-ring/50 mx-auto flex h-10 min-w-0 max-w-2xl flex-1 items-center rounded-lg border shadow-xs transition-[color,box-shadow] focus-within:ring-[3px] dark:bg-input/30"
         >
           <div className="relative min-w-0 flex-1">
-            <Search className="text-muted-foreground pointer-events-none absolute start-3 top-1/2 size-4 -translate-y-1/2" />
             <Input
               {...CATALOG_SEARCH_FIELDS.q}
               name="q"
@@ -159,7 +153,7 @@ export function PublicHeader() {
               onChange={(e) => setCatalogSearch(e.target.value)}
               placeholder={t(locale, "searchPlaceholder")}
               aria-label={t(locale, "searchLabel")}
-              className="ps-9"
+              className="h-9 border-0 bg-transparent px-3.5 shadow-none focus-visible:ring-0 dark:bg-transparent"
             />
           </div>
 
@@ -174,7 +168,7 @@ export function PublicHeader() {
               setCatalogCategory(e.target.value === "" ? null : e.target.value)
             }
             aria-label={t(locale, "category")}
-            className="border-input bg-background focus-visible:border-ring focus-visible:ring-ring/50 hidden h-9 max-w-40 rounded-md border px-2 text-sm shadow-xs transition-[color,box-shadow] outline-none focus-visible:ring-[3px] lg:block dark:bg-input/30"
+            className="text-muted-foreground hover:text-foreground hidden h-9 max-w-40 border-s bg-transparent px-3 text-sm outline-none lg:block"
           >
             <option value="">{t(locale, "allTab")}</option>
             {categories.map((name) => (
@@ -184,10 +178,13 @@ export function PublicHeader() {
             ))}
           </select>
 
-          <Button type="submit" variant="outline" className="shrink-0">
+          <button
+            type="submit"
+            className="text-muted-foreground hover:text-foreground focus-visible:ring-ring flex size-9 shrink-0 items-center justify-center rounded-e-lg focus-visible:ring-2 focus-visible:outline-none"
+          >
             <Search className="size-4" />
             <span className="sr-only">{t(locale, "searchLabel")}</span>
-          </Button>
+          </button>
         </form>
 
         <div className="flex shrink-0 items-center gap-1.5">
