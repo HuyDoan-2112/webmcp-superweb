@@ -29,7 +29,7 @@ export function asText(value: unknown): string | undefined {
   return v === "" ? undefined : v;
 }
 
-/** Reused in five schemas. Built from the registry, never hand written. */
+/** Reused across the tool schemas below. Built from the registry, never hand written. */
 export const METRIC_ENUM = {
   type: "string",
   enum: [...METRIC_IDS],

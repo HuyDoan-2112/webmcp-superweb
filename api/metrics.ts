@@ -1,7 +1,10 @@
-// GET /api/metrics - the registry itself.
+// GET /api/metrics - the registry itself, at the depth the session earns.
 //
-// main.tsx fetches this before registering tools, so tool schemas carry real
-// metric ids as enums rather than free text an agent can typo.
+// Nothing in this repo calls this endpoint today. Tool schemas get their
+// metric ids from a static import of shared/metrics.ts (src/mcp/register.ts),
+// which resolves before any fetch could, so registration never waits on this.
+// This is the same registry shaped for a caller over HTTP, at the audience
+// depth every other endpoint answers at.
 
 import { DIMENSIONS, METRICS, DEMO_PERIOD } from "../shared/metrics.js";
 import { privateJson } from "./_lib/http.js";

@@ -1,6 +1,7 @@
-// Boot order: store -> session -> fetch metric list -> UI -> register tools.
-// Tools register only after the metric registry has loaded, so their schemas
-// carry real metric names as enums. See docs/PLAN.md section 3, rule 4.
+// Boot order: render the UI, then register tools.
+// The metric registry is a static import (shared/metrics.ts), resolved before
+// this module runs, so tool schemas already carry real metric names as enums
+// by the time registration starts. See docs/PLAN.md section 3, rule 4.
 
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";

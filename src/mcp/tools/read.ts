@@ -106,10 +106,11 @@ function table(
  *
  * The picture is the page's picture: /api/chart renders the same Recharts
  * module TrendChart renders, from the same rows, under the same store filters
- * the page is showing, and stamps the trust verdict into the image itself. That last part matters more than it looks. An image
- * travels in a way a transcript does not, so a chart of an incomplete figure
- * that carried no verdict would be the failure this project exists to stop,
- * made more pasteable.
+ * the page is showing, and stamps the trust verdict into the image itself.
+ * That last part matters more than it looks. An image travels in a way a
+ * transcript does not, so a chart of an incomplete figure that carried no
+ * verdict would be the failure this project exists to stop, made more
+ * pasteable.
  */
 function chartUrl(metric: string, period: string): string {
   const filters = getState().filters;

@@ -4,9 +4,9 @@
 and period alone. Both were rejected.
 
 The FX gap hits Europe while North America is sound, so a verdict that cannot
-see the filter would block four good report sections to protect one, and the
-demo is precisely four published and one blocked. The verdict therefore ranges
-over **metric + period + filter**.
+see the filter would block five good report sections to protect four broken
+ones, and the demo is four published, four blocked, and one genuinely
+degraded. The verdict therefore ranges over **metric + period + filter**.
 
 It carries three values, `ok | degraded | blocked`, because the middle case
 (the number stands but something is off) is a real state the report has to

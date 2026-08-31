@@ -77,11 +77,12 @@ alone answers roughly forty questions, six metrics against eight dimensions,
 from a single registration. Forty named tools would answer the same questions
 and make the agent worse at choosing between them.
 
-**Registration follows page state.** The public catalogue registers five tools.
+**Registration follows page state.** The public catalogue registers eight tools.
 Signing in swaps them for seven. Opening the report registers two more, and a
-check coming back failed registers the two diagnostic tools, so the surface tops
-out at eleven and drops back as the page moves. Nothing is gated by identity.
-The visible surface stays small while the answerable space stays large.
+check coming back failed registers the two diagnostic tools, so the surface
+dips before it tops out at eleven, dropping back as the page moves. Nothing is
+gated by identity. The visible surface stays small while the answerable space
+stays large.
 
 **A form with three attributes is a tool.** The catalogue search box carries
 `toolname`, `tooldescription` and `toolautosubmit`, with `toolparamdescription`
@@ -130,9 +131,9 @@ because runtime registration has a published attack surface.
 ## The public surface
 
 Signed out, the origin is the Kestrel Supply Co. trade catalogue, and the
-visitor's agent gets five tools for browsing it plus the declarative search
-form. Signing in switches the shell to the internal dashboard and replaces
-those tools with the full set.
+visitor's agent gets eight tools for browsing it and checking its promotions,
+plus the declarative search form. Signing in switches the shell to the internal
+dashboard and replaces those tools with the full set.
 
 That switch is an argument no hosted MCP server can make. One origin serves two
 different tool surfaces decided by session, with the agent configuring nothing
@@ -258,10 +259,10 @@ true. `adapter.ts` reads `document` first regardless, so either spelling works.
 
 A declarative tool's lifetime is its element's. Signing in unmounts the
 catalogue search form and the browser drops `search_catalog_form` from
-`getTools()` on its own, with no `AbortController` and no code of ours. Measured
-across the surface switch: six tools before, seven after, the form gone. The
-imperative groups need a controller each; the declarative one needs nothing,
-which is the same argument as the schema, one layer down.
+`getTools()` on its own, with no `AbortController` and no code of ours. Nine
+tools before the surface switch, seven after, the form gone. The imperative
+groups need a controller each; the declarative one needs nothing, which is the
+same argument as the schema, one layer down.
 
 ## Repository
 

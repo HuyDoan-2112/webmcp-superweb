@@ -12,11 +12,8 @@ Issues and specs for this repo live as GitHub issues. Use the `gh` CLI for all o
 - **Close**: `gh issue close <number> --comment "..."`
 
 Infer the repo from `git remote -v`; `gh` does this automatically when run inside a clone.
-
-> **Not yet wired.** As of setup this repo had no git remote and no commits. Create
-> and push the GitHub repo before any skill tries to create an issue, or `gh` will
-> fail with no repo to target. The repo must be public with an open-source licence
-> for the challenge submission regardless.
+The remote is `github.com/HuyDoan-2112/webmcp-superweb` and `main` is pushed to it.
+It must stay public with an open-source licence for the challenge submission.
 
 ## Pull requests as a triage surface
 

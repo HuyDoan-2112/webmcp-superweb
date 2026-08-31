@@ -1,4 +1,4 @@
-# The Number Was Never Real
+# The number was never real
 
 **Build plan - OpenAI WebMCP Challenge**
 
@@ -31,8 +31,9 @@ to silver to gold, with the gold parquet and the run metadata committed. The
 read-only API over DuckDB in `api/`. Both surfaces built and pointed at real
 endpoints, the public catalogue and the dashboard alike. The tool layer in
 `src/mcp/`, imperative tools plus the declarative search form, with the
-visibility panel and the context registration rules. Eleven commits are on the
-remote and the working tree is clean.
+visibility panel and the context registration rules. The origin trial token in
+`index.html`, bound to `https://webmcp-superweb.vercel.app`, expiring
+2026-11-17. The working tree is clean.
 
 **Not done.** These are what is left before the deadline, in the order they will
 hurt.
@@ -47,9 +48,6 @@ hurt.
   to the committed artifacts under `data/meta/` and say which source answered;
   the owner note at the top of `src/mcp/api.ts` says to delete the fallback once
   the deployment is real.
-- **The origin trial token is unregistered.** `index.html` still carries
-  `REPLACE_WITH_TOKEN` in a commented-out meta tag. The token binds to the
-  origin, so the deploy URL has to be claimed first.
 - **`build_deck` returns a slide outline, not a `.pptx`.** PptxGenJS is not
   installed. The fallback in §9 was always to render in the page, and that is
   what it does.
@@ -119,7 +117,7 @@ same state, and `src/mcp/` was not touched at all.
 
 3. **Watch the serverless bundle limit.** Committed parquet gets pulled into the function bundle, which is capped. Keep `data/gold/` under ~50 MB. If it grows, host the parquet as a static asset and read it over HTTP instead of bundling it.
 
-4. **Register tools after the metric list loads.** `main.tsx` boots the store, restores the session, resolves the metric registry, *then* starts the tool layer - so tool schemas carry real metric names as enums rather than a free-text string the agent can typo. Your very first registration is then already dynamic.
+4. **Register tools after the metric list loads.** The metric registry (`shared/metrics.ts`) is a static import, resolved before `main.tsx` starts the tool layer, so tool schemas carry real metric names as enums rather than a free-text string the agent can typo. Your very first registration is then already dynamic.
 
 5. **Both READMEs matter for judging.** The root one needs the architecture diagram (a requirement). `etl/README.md` is what makes a technical judge believe the pipeline is real rather than staged.
 
@@ -158,17 +156,19 @@ Chrome's guidance is explicit that each registered tool consumes context and tha
 Registration follows page state, the pattern the spec already uses for login and logout. Nothing is gated by identity; tools appear when they become **relevant**, keeping the visible surface small while the answerable space stays large.
 
 Four groups with four lifetimes, all of them declared in `src/mcp/register.ts`,
-their tools written in `src/mcp/tools/`. The public catalogue registers five.
-Signing in swaps those for seven. Opening the report registers two more, and a
-check coming back failed registers the two diagnostic tools, so the count on
-screen runs 6 → 7 → 9 → 11 and drops back as the page moves. Six, not five:
-`getTools()` counts the declarative form alongside the five imperative tools,
-and the panel reads `getTools()` straight through. The public set is
-swapped out rather than kept, because its tools drive a catalogue that is no
-longer on the screen, and a registered tool that cannot move the page is a tool
-the agent can pick by mistake.
+their tools written in `src/mcp/tools/`. The public catalogue registers eight -
+five catalogue tools plus the three promotions tools added afterward. Signing in
+swaps those for seven. Opening the report registers two more, and a check coming
+back failed registers the two diagnostic tools, so the count on screen runs
+9 → 7 → 9 → 11: it dips on sign-in before it climbs, because the public set now
+outnumbers the internal one. Nine, not eight, on the public side: `getTools()`
+counts the declarative form alongside the eight imperative tools, and the panel
+reads `getTools()` straight through. The public set is swapped out rather than
+kept, because its tools drive a catalogue that is no longer on the screen, and a
+registered tool that cannot move the page is a tool the agent can pick by
+mistake.
 
-The count on screen is what a judge watches move.
+The count on screen is what a judge watches move, dip included.
 
 Two tools that were planned are not there. `find_drivers` was cut, as the rank
 in §8 says. `compare_periods` was not built either, and its main job is
@@ -191,10 +191,10 @@ the same as any form submission, so a number field still needs parsing.
 
 Its lifetime is the form element's. Signing in unmounts the catalogue header
 and the browser drops the tool from `getTools()` unprompted, with no
-`AbortController` and none of the reconciler in `register.ts` involved. Measured
-across the switch on 2026-08-29: six tools before, seven after, the form gone.
-So the swap-don't-keep rule holds even for the one tool the reconciler cannot
-reach.
+`AbortController` and none of the reconciler in `register.ts` involved. Nine
+tools before the switch, seven after, the form gone along with the rest of the
+public set. So the swap-don't-keep rule holds even for the one tool the
+reconciler cannot reach.
 
 This is the strongest thing in the project. The rule at the top of §2 is that a
 tool must take the same path a click takes, and with a declarative tool the
@@ -453,9 +453,9 @@ everything from 9 down was stretch, and cutting starts at the bottom.
 | 12 | `build_deck` | stretch | built, as a slide outline |
 | 13 | `find_drivers` | stretch, cut first | cut. It overlaps `breakdown_metric` |
 
-The catalogue tools and the declarative form are not on this list, because the
-public surface was not in the plan when the list was written. They rank below
-everything above and above nothing.
+The catalogue tools, the promotions tools and the declarative form are not on
+this list, because the public surface was not in the plan when the list was
+written. They rank below everything above and above nothing.
 
 > **Gate:** the agent answers an unrehearsed question correctly, and a section
 > gets blocked in plain language without anyone touching a switch.
@@ -465,7 +465,7 @@ everything above and above nothing.
 | | Risk | Response |
 |---|---|---|
 | **HIGH** | **Mid-turn tool registration is undocumented.** The spec doesn't say whether the agent sees newly registered tools in the same turn | Still open. Page-side is settled - `toolchange` fires and `getTools()` updates - but agent-side same-turn visibility is documented nowhere. If it fails, register the report tools when the panel opens via UI instead |
-| **HIGH** | **Origin-trial token bound to the wrong origin.** The dev machine has the feature on by flag and hides this entirely | Claim the URL before the build day; never rename the project. Test in a browser with no flag set |
+| CLOSED | **Origin-trial token bound to the wrong origin.** The dev machine has the feature on by flag and hides this entirely | The token in `index.html` binds to `https://webmcp-superweb.vercel.app`, expiring 2026-11-17. Renaming the project needs a new token |
 | **HIGH** | **One build day means no second attempt.** A track that stalls has no later day to absorb it | The tool rank in §8. Stop building down the list the moment the demo arc runs end to end |
 | MED | **Wrong tool selection**, the most common way a WebMCP demo dies | Eleven at once is enough for confusion. Descriptions are prompts: tune against real transcripts, not by reasoning about them |
 | MED | **A `.pptx` download is blocked in the in-app browser** | Response taken. `build_deck` is rank 12 in §8 and returns a slide outline rendered in the page. PptxGenJS is not installed and no file is offered |

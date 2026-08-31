@@ -48,17 +48,22 @@ the same string serves both.
 
 ## Output schema
 
-**Every steering decision in this repo is a workaround for not having one.**
-`inputSchema` is enforced by the browser; there is nothing on the way out, so a
-tool's return value is prose the model reads. That is why our returns are shaped
-as flat labelled records rather than sentences, and why one return names one
-next tool with exact arguments rather than offering a choice.
+**Every steering decision in this repo was a workaround for not having one.**
+`inputSchema` is enforced by the browser; nothing validates the way out. Since
+this was first measured, `check_data_trust` and `draft_report` grew a hand-rolled
+substitute: `src/mcp/structured.ts` appends a fenced JSON block after the prose,
+built from the same values, so an agent that parses gets `verdict`,
+`rejectedRows`, `expectedRows` and `runId` as fields instead of a paragraph it
+has to read correctly. Every other tool still answers in prose alone, and that
+is why our returns generally stay shaped as flat labelled records rather than
+sentences, one return naming one next tool with exact arguments.
 
-An `outputSchema` would let `check_data_trust` return `verdict`, `rejectedRows`,
-`expectedRows` and `runId` as typed fields the agent could branch on, instead of
-a paragraph we hope it parses. The three-value verdict in
-`docs/adr/0002-trust-verdict-has-three-values.md` is precisely the kind of
-contract that wants declaring rather than narrating.
+It is still not `outputSchema`. Nothing enforces the block's shape and
+`getTools()` advertises none of it, so an agent has to know to look. The
+three-value verdict in `docs/adr/0002-trust-verdict-has-three-values.md` is the
+kind of contract a real `outputSchema` would declare rather than leave to
+convention. See the header of `src/mcp/structured.ts` for the absence argument
+we would bring to https://github.com/webmachinelearning/webmcp/issues/9.
 
 ## Input and output schema validation
 
@@ -77,7 +82,9 @@ is documentation to the model, not a gate.
 **Output validation is the more interesting half, and we would not want it
 naively.** Our tools deliberately withhold: a blocked slice is never queried, so
 its figure cannot appear even by accident. A validator that required a `value`
-field on every result would fight that. Absence has to be expressible.
+field on every result would fight that. Absence has to be expressible -
+`structured.ts` already does this by hand, dropping the key rather than sending
+a null or a zero.
 
 ## Skills integration
 

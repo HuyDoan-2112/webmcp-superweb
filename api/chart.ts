@@ -7,7 +7,7 @@
 // error. Measured before choosing: see docs/research/chart-rendering-on-vercel.md
 // and issue #28.
 //
-// THE DRAWING IS NOT WRITTEN HERE. It comes from src/ui/chart-figure.tsx, the
+// THE DRAWING IS NOT WRITTEN HERE. It comes from src/ui/chart-figure.ts, the
 // same module TrendChart renders, so the picture the agent hands over and the
 // picture on the screen cannot disagree about axes or aggregation. The parts
 // that genuinely differ between a browser and a server are the container and

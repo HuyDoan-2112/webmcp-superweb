@@ -51,12 +51,6 @@ export const CHART_THEME: ChartTheme = {
 export const CHART_MARGIN = { top: 8, right: 16, left: 8, bottom: 0 };
 
 /**
- * The children of the AreaChart: gradient, grid, both axes, the area itself.
- *
- * Returned as an array rather than a fragment because Recharts inspects its
- * direct children to work out what to draw, and a fragment hides them from it.
- */
-/**
  * createElement, minus the overload resolution.
  *
  * Recharts declares `defaultProps.type` and `defaultProps.legendType` as plain
@@ -71,6 +65,12 @@ const el = createElement as (
   ...children: unknown[]
 ) => ReactElement;
 
+/**
+ * The children of the AreaChart: gradient, grid, both axes, the area itself.
+ *
+ * Returned as an array rather than a fragment because Recharts inspects its
+ * direct children to work out what to draw, and a fragment hides them from it.
+ */
 export function chartBody(
   theme: ChartTheme,
   formatValue: (v: number) => string,
