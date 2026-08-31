@@ -161,7 +161,18 @@ export class ToolGroup {
     for (const spec of specs) {
       // Sequential rather than Promise.all: registration order is the order
       // getTools() reports, and the panel reads that order straight through.
-      await mc.registerTool(guard(spec), { signal: controller.signal });
+      //
+      // Guarded for the same reason build() is. registerTool is an experimental
+      // API, and one rejected descriptor must not escape open() and poison the
+      // reconciler's queue.
+      try {
+        await mc.registerTool(guard(spec), { signal: controller.signal });
+      } catch (error) {
+        console.error(
+          `[superweb] registering "${spec.name}" in group "${this.id}" failed`,
+          error,
+        );
+      }
     }
   }
 

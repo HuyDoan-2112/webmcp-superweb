@@ -13,7 +13,7 @@
 // Plain DOM and inline styles on purpose. It sits outside the React tree, so it
 // cannot be unmounted by a surface switch, and it holds no state of its own.
 
-import { getModelContext, listTools, onToolChange } from "./adapter";
+import { getModelContext, listTools, onToolChange, whenSupported } from "./adapter";
 import { supportsDeclarativeTools } from "./declarative";
 
 const ELEMENT_ID = "superweb-mcp-panel";
@@ -214,14 +214,12 @@ export function mountPanel(): void {
   // behind it, which is the most misleading thing this panel could say.
   // onToolChange cannot cover it: with no API there is nothing to subscribe to.
   if (!getModelContext()) {
-    const timer = setInterval(() => {
-      if (!getModelContext()) return;
-      clearInterval(timer);
+    void whenSupported().then((appeared) => {
+      if (!appeared) return;
       void render(root);
       onToolChange(() => {
         void render(root);
       });
-    }, 250);
-    setTimeout(() => clearInterval(timer), 20_000);
+    });
   }
 }

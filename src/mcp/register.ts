@@ -28,8 +28,7 @@
 // built from fetched content: runtime registration has a published attack
 // surface and this is the whole of our defence against it.
 
-import { METRIC_IDS } from "@shared/metrics";
-import { getState, setState, subscribe } from "@/store";
+import { getState, subscribe } from "@/store";
 import { ToolGroup, isSupported, whenSupported } from "./adapter";
 import { mountPanel } from "./panel";
 import { publicTools } from "./tools/catalog";
@@ -45,10 +44,10 @@ const groups = {
     ...(await publicTools()),
     ...promotionTools(),
   ]),
-  internal: new ToolGroup("internal", () => [
+  internal: new ToolGroup("internal", async () => [
     ...readTools(),
     ...trustTools(),
-    ...viewTools(),
+    ...(await viewTools()),
     ...reportEntryTools(),
   ]),
   report: new ToolGroup("report", reportTools),
@@ -63,15 +62,22 @@ const groups = {
 let queue: Promise<void> = Promise.resolve();
 
 function reconcile(): void {
-  queue = queue.then(async () => {
-    const s = getState();
-    const internal = s.surface === "internal";
+  queue = queue
+    .then(async () => {
+      const s = getState();
+      const internal = s.surface === "internal";
 
-    await sync(groups.public, !internal);
-    await sync(groups.internal, internal);
-    await sync(groups.report, internal && s.reportOpen);
-    await sync(groups.diagnostics, internal && s.hasFailedCheck);
-  });
+      await sync(groups.public, !internal);
+      await sync(groups.internal, internal);
+      await sync(groups.report, internal && s.reportOpen);
+      await sync(groups.diagnostics, internal && s.hasFailedCheck);
+    })
+    // The queue must always settle fulfilled. A rejected queue makes every
+    // later .then() skip its body and re-reject, so one bad pass would leave
+    // the page permanently unable to register or unregister anything again.
+    .catch((error) => {
+      console.error("[superweb] reconciling the tool groups failed", error);
+    });
 }
 
 async function sync(group: ToolGroup, wanted: boolean): Promise<void> {
@@ -127,11 +133,6 @@ export function startModelContext(): void {
 
 /** Subscribe and reconcile. Split out so a late-arriving API can call it too. */
 function begin(): void {
-
-  // The registry is loaded, which is the precondition for registration.
-  // Recorded on the store so the UI can say so without importing this module.
-  setState({ metricsLoaded: METRIC_IDS.length > 0 });
-
   subscribe(reconcile);
   reconcile();
 }

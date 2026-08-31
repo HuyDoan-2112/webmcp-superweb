@@ -78,8 +78,6 @@ export const CATALOG_SEARCH_FIELDS = {
  *     <button type="submit">Search</button>
  *   </form>
  */
-export const CATALOG_SEARCH_MARKUP_NOTE =
-  "Spread onto the search form in src/ui/public/header.tsx.";
 
 /**
  * Answer a declarative tool call from inside a normal submit handler.
