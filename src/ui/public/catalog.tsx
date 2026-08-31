@@ -6,7 +6,6 @@ import {
   SearchX,
   SlidersHorizontal,
   TriangleAlert,
-  X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -114,11 +113,19 @@ export function Catalog() {
     if (data && page > pages) setCatalogPage(pages);
   }, [data, page, pages]);
 
+  const isFiltered =
+    query.trim() !== "" ||
+    filters.category !== null ||
+    filters.brand !== null ||
+    filters.subcategory !== null ||
+    filters.color !== null ||
+    filters.minPrice !== null ||
+    filters.maxPrice !== null;
+
   return (
     <div className="mx-auto grid w-full max-w-7xl gap-8 px-4 py-8 sm:px-6 lg:grid-cols-[13rem_1fr] lg:gap-10">
-      {/* min-w-0 on both columns, or the tab strip's own width sets the width
-          of the grid track and the whole page scrolls sideways instead of the
-          strip scrolling inside itself. */}
+      {/* min-w-0 on both columns, or a wide child sets the width of its grid
+          track and the whole page scrolls sideways. */}
       <aside className="min-w-0 lg:sticky lg:top-24 lg:max-h-[calc(100svh-8rem)] lg:self-start lg:overflow-y-auto">
         {/* Below lg the five facets fold into one summary, so a phone is not
             asked to scroll a wall of them before it reaches a product. `open`
@@ -133,11 +140,15 @@ export function Catalog() {
           </summary>
 
           <div className="mt-4 lg:mt-0">
-            <ActiveFilters
-              filters={filters}
-              locale={locale}
-              className="mb-5"
-            />
+            {isFiltered && (
+              <button
+                type="button"
+                onClick={clearCatalogFilters}
+                className="text-muted-foreground hover:text-foreground focus-visible:ring-ring mb-4 rounded-md text-xs underline-offset-4 hover:underline focus-visible:ring-2 focus-visible:outline-none"
+              >
+                {t(locale, "clearFilters")}
+              </button>
+            )}
             <Facet
               label={t(locale, "category")}
               options={categories}
@@ -189,12 +200,6 @@ export function Catalog() {
       </aside>
 
       <section className="min-w-0">
-        <Tabs
-          categories={categories}
-          active={filters.category}
-          locale={locale}
-        />
-
         <div className="mb-5 flex items-baseline justify-between gap-4 border-b pb-3">
           <h1 className="truncate text-lg font-semibold tracking-tight">
             {filters.subcategory ?? filters.category ?? t(locale, "everything")}
@@ -252,61 +257,6 @@ export function Catalog() {
           </>
         )}
       </section>
-    </div>
-  );
-}
-
-/**
- * The category tab strip.
- *
- * Drives `setCatalogCategory`, the same setter the sidebar facet and the header
- * select call, so the three controls are three views of one piece of state
- * rather than three sources of truth. "All" is that setter with null.
- */
-function Tabs({
-  categories,
-  active,
-  locale,
-}: {
-  categories: readonly FacetCount[];
-  active: string | null;
-  locale: Locale;
-}) {
-  const all = categories.reduce((sum, c) => sum + c.n, 0);
-  const tabs: { label: string; value: string | null; n: number }[] = [
-    { label: t(locale, "allTab"), value: null, n: all },
-    ...categories.map((c) => ({ label: c.label, value: c.label, n: c.n })),
-  ];
-
-  return (
-    <div
-      role="tablist"
-      aria-label={t(locale, "category")}
-      className="-mx-4 mb-5 flex gap-1 overflow-x-auto px-4 pb-1 sm:mx-0 sm:px-0"
-    >
-      {tabs.map((tab) => {
-        const isActive = active === tab.value;
-        return (
-          <button
-            key={tab.label}
-            type="button"
-            role="tab"
-            aria-selected={isActive}
-            onClick={() => setCatalogCategory(tab.value)}
-            className={cn(
-              "focus-visible:ring-ring flex shrink-0 items-center gap-2 rounded-full border px-3 py-1.5 text-sm whitespace-nowrap transition-colors focus-visible:ring-2 focus-visible:outline-none",
-              isActive
-                ? "border-foreground bg-primary text-primary-foreground"
-                : "hover:bg-accent hover:text-accent-foreground",
-            )}
-          >
-            {tab.label}
-            <span className="font-mono text-[11px] tabular-nums opacity-60">
-              {tab.n}
-            </span>
-          </button>
-        );
-      })}
     </div>
   );
 }
@@ -450,101 +400,6 @@ function PriceFacet({
       </div>
     </details>
   );
-}
-
-/**
- * What is currently narrowing the grid, as removable chips.
- *
- * Before this the applied filters were only visible by opening every collapsed
- * section, and the only way to drop one was to find it again in a list of
- * sixteen. Each chip clears exactly one facet, which is the move people
- * actually make: they over-narrow, then back off by one.
- */
-function ActiveFilters({
-  filters,
-  locale,
-  className,
-}: {
-  filters: CatalogFilters;
-  locale: Locale;
-  className?: string;
-}) {
-  const chips: { key: string; label: string; clear: () => void }[] = [];
-  if (filters.category !== null)
-    chips.push({
-      key: "category",
-      label: filters.category,
-      clear: () => setCatalogCategory(null),
-    });
-  if (filters.subcategory !== null)
-    chips.push({
-      key: "subcategory",
-      label: filters.subcategory,
-      clear: () => setCatalogSubcategory(null),
-    });
-  if (filters.brand !== null)
-    chips.push({
-      key: "brand",
-      label: filters.brand,
-      clear: () => setCatalogBrand(null),
-    });
-  if (filters.color !== null)
-    chips.push({
-      key: "color",
-      label: titleCase(filters.color),
-      clear: () => setCatalogColor(null),
-    });
-  if (filters.minPrice !== null || filters.maxPrice !== null)
-    chips.push({
-      key: "price",
-      label: priceRangeLabel(filters.minPrice, filters.maxPrice, locale),
-      clear: () => setCatalogPriceRange(null, null),
-    });
-
-  if (chips.length === 0) return null;
-
-  return (
-    <div className={className}>
-      <div className="flex flex-wrap gap-1.5">
-        {chips.map((chip) => (
-          <button
-            key={chip.key}
-            type="button"
-            onClick={chip.clear}
-            className="bg-secondary text-secondary-foreground hover:bg-secondary/70 focus-visible:ring-ring inline-flex max-w-full items-center gap-1 rounded-md py-1 ps-2 pe-1.5 text-xs transition-colors focus-visible:ring-2 focus-visible:outline-none"
-          >
-            <span className="min-w-0 truncate">{chip.label}</span>
-            <X className="size-3 shrink-0 opacity-60" aria-hidden="true" />
-            {/* Names the one facet this removes. "Clear filters" here would tell
-                a screen reader the button does what the link beside it does. */}
-            <span className="sr-only">
-              {t(locale, "removeFilter", { label: chip.label })}
-            </span>
-          </button>
-        ))}
-        {chips.length > 1 && (
-          <button
-            type="button"
-            onClick={clearCatalogFilters}
-            className="text-muted-foreground hover:text-foreground focus-visible:ring-ring rounded-md px-2 py-1 text-xs underline-offset-4 hover:underline focus-visible:ring-2 focus-visible:outline-none"
-          >
-            {t(locale, "clearFilters")}
-          </button>
-        )}
-      </div>
-    </div>
-  );
-}
-
-function priceRangeLabel(
-  min: number | null,
-  max: number | null,
-  locale: Locale,
-): string {
-  if (min !== null && max !== null)
-    return `${formatPrice(min, locale)} to ${formatPrice(max, locale)}`;
-  if (min !== null) return t(locale, "priceFrom", { price: formatPrice(min, locale) });
-  return `${formatPrice(max ?? 0, locale)} and under`;
 }
 
 const FACET_VISIBLE = 7;

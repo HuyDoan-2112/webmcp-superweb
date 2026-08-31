@@ -1,9 +1,12 @@
-// The announcement strip: a rail of headline cards above the catalogue grid.
+// The announcement ticker: every promotion, scrolling right to left.
 //
-// Chosen over a rotating ribbon in issue #30, and not on looks. A ribbon shows
-// one promotion at a time, so the sound claim is what loads and the broken one
-// sits two clicks away. Every claim stays on screen here, which is the property
-// the demo needs.
+// This replaced a static rail of four cards. The rail existed because a
+// rotating ribbon shows one promotion at a time, which leaves the broken claim
+// two clicks away, and the demo is an agent checking a claim the page states
+// plainly. A ticker has the same risk, so it is mitigated rather than ignored:
+// hover slows it to a crawl, keyboard focus stops it, selecting a promotion
+// pins it, and under prefers-reduced-motion it never moves. Every claim stays
+// reachable, which is the property that actually mattered.
 //
 // THE STRIP NEVER SHOWS A VERDICT. Painted verdict badges were built and
 // rejected: a page that already tells a shopper the number is bad makes
@@ -15,10 +18,9 @@
 // supplier's. That is why the tools over this carry untrustedContentHint:
 // false.
 
-import { ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useStore } from "@/hooks/use-store";
-import { selectPromotion } from "@/store";
+import { selectPromotion, type Locale } from "@/store";
 import { isLive, readPromotions, today } from "@/promotions";
 import { t } from "./i18n";
 
@@ -28,72 +30,102 @@ export function AnnouncementStrip() {
   const selected = useStore((s) => s.selectedPromotionCode);
   const locale = useStore((s) => s.locale);
   const day = today();
+  const open = PROMOTIONS.find((p) => p.code === selected) ?? null;
 
   return (
     <section aria-label="Announcements" className="border-b">
-      <div className="relative mx-auto w-full max-w-7xl px-4 sm:px-6">
-        <div className="divide-border grid divide-y sm:grid-cols-2 sm:divide-y-0 lg:grid-cols-4 sm:divide-x">
-          {PROMOTIONS.map((p) => {
-            const running = isLive(p, day);
-            const open = selected === p.code;
-            return (
-              <div key={p.code} className="relative">
-                <button
-                  type="button"
-                  aria-expanded={open}
-                  aria-controls={`promo-${p.code}`}
-                  className={cn(
-                    "hover:bg-muted/40 group/promo flex w-full items-center gap-3 px-4 py-3 text-left transition",
-                    open && "bg-muted/60",
-                  )}
-                  onClick={() => selectPromotion(open ? null : p.code)}
-                >
-                  <span className="min-w-0 flex-1">
-                    <span className="block truncate text-sm font-medium">
-                      {p.headline}
-                    </span>
-                    <span className="text-muted-foreground mt-0.5 block text-xs">
-                      {running
-                        ? t(locale, "promoOnNow")
-                        : t(locale, "promoFrom", { date: p.validFrom })}
-                    </span>
-                  </span>
-                  <ChevronDown
-                    aria-hidden="true"
-                    className={cn(
-                      "text-muted-foreground size-4 shrink-0 transition-transform",
-                      open && "rotate-180",
-                    )}
-                  />
-                </button>
-
-                {/*
-                  Absolutely positioned, and that is the whole point. Rendered
-                  in flow it grew the grid row and shoved the catalogue down the
-                  page on every click, so the thing the visitor was reading
-                  moved out from under them. The card keeps its height, the
-                  detail floats over what is below it, and nothing reflows.
-                */}
-                {open && (
-                  <div
-                    id={`promo-${p.code}`}
-                    className="bg-background absolute inset-x-0 top-full z-20 border-x border-b p-3 text-xs shadow-md"
-                  >
-                    <p className="text-muted-foreground">{p.body}</p>
-                    <p className="mt-2">
-                      <span className="text-muted-foreground">Claim. </span>
-                      {p.claim.assertion}
-                    </p>
-                    <p className="text-muted-foreground mt-2 font-mono text-[11px]">
-                      {p.code} · {p.validFrom} to {p.validTo}
-                    </p>
-                  </div>
-                )}
-              </div>
-            );
-          })}
+      <div
+        className="ticker relative mx-auto w-full max-w-7xl"
+        data-paused={open !== null}
+      >
+        <div className="ticker-mask">
+          {/* Two copies, and only the first is announced. The second exists so
+              the loop has something to run into, and a screen reader reading
+              every promotion twice would be a bug rather than a feature. */}
+          <div className="ticker-track flex w-max">
+            <TickerRun day={day} locale={locale} selected={selected} />
+            <TickerRun day={day} locale={locale} selected={selected} duplicate />
+          </div>
         </div>
+
+        {/* Pinned under the whole strip rather than under one item, because the
+            item is moving and an anchored panel would slide off with it. Still
+            absolutely positioned: rendered in flow it pushed the catalogue down
+            the page on every click. */}
+        {open !== null && (
+          <div
+            id={`promo-${open.code}`}
+            className="bg-background absolute inset-x-0 top-full z-20 border-b p-4 text-xs shadow-md"
+          >
+            <div className="mx-auto w-full max-w-3xl px-4 sm:px-6">
+              <p className="text-muted-foreground">{open.body}</p>
+              <p className="mt-2">
+                <span className="text-muted-foreground">Claim. </span>
+                {open.claim.assertion}
+              </p>
+              <p className="text-muted-foreground mt-2 font-mono text-[11px]">
+                {open.code} · {open.validFrom} to {open.validTo}
+              </p>
+            </div>
+          </div>
+        )}
       </div>
     </section>
+  );
+}
+
+/** One pass of every promotion. Rendered twice to make the loop seamless. */
+function TickerRun({
+  day,
+  locale,
+  selected,
+  duplicate,
+}: {
+  day: string;
+  locale: Locale;
+  selected: string | null;
+  duplicate?: boolean;
+}) {
+  return (
+    <div className="flex shrink-0 items-center" aria-hidden={duplicate}>
+      {PROMOTIONS.map((p) => {
+        const running = isLive(p, day);
+        const isOpen = selected === p.code;
+        return (
+          <button
+            key={p.code}
+            type="button"
+            tabIndex={duplicate ? -1 : undefined}
+            aria-expanded={isOpen}
+            aria-controls={`promo-${p.code}`}
+            onClick={() => selectPromotion(isOpen ? null : p.code)}
+            className="group/promo flex shrink-0 items-center gap-3 py-1.5 ps-1 pe-4 text-sm whitespace-nowrap"
+          >
+            {/* The pill is the hover state, not an underline. Underlining text
+                that is already sliding sideways reads as a link that got away
+                from you. */}
+            <span
+              className={cn(
+                "flex items-baseline gap-2 rounded-full px-3 py-1 transition-colors",
+                isOpen
+                  ? "bg-foreground text-background font-medium"
+                  : "text-muted-foreground group-hover/promo:bg-muted group-hover/promo:text-foreground",
+              )}
+            >
+              {p.headline}
+              {!running && (
+                <span className="text-[11px] opacity-70">
+                  {t(locale, "promoFrom", { date: p.validFrom })}
+                </span>
+              )}
+            </span>
+            <span
+              aria-hidden="true"
+              className="bg-border h-3 w-px shrink-0"
+            />
+          </button>
+        );
+      })}
+    </div>
   );
 }

@@ -85,3 +85,52 @@
     height: 0;
   }
 }
+
+/* The announcement ticker. Two identical copies of the list sit side by side
+   and the track slides exactly half its width, so the seam lands where the
+   second copy starts and the loop has no visible jump. */
+@keyframes ticker {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+.ticker-track {
+  animation: ticker 42s linear infinite;
+}
+
+/* Items fade out at both edges instead of being cut off by the container. A
+   hard clip is what makes a marquee read as a cheap browser default. */
+.ticker-mask {
+  overflow: hidden;
+  mask-image: linear-gradient(
+    to right,
+    transparent 0,
+    black 5rem,
+    black calc(100% - 5rem),
+    transparent 100%
+  );
+}
+
+/* Hover slows it rather than stopping it dead. A full stop under the cursor
+   feels like a bug; easing off reads as deliberate and still lets you click. */
+.ticker:hover .ticker-track {
+  animation-duration: 180s;
+}
+
+/* Keyboard focus and an open panel do stop it, because both mean someone is
+   working with a specific promotion and it must not move under them. */
+.ticker:focus-within .ticker-track,
+.ticker[data-paused="true"] .ticker-track {
+  animation-play-state: paused;
+}
+
+/* Motion is decoration here, and every claim is still reachable without it. */
+@media (prefers-reduced-motion: reduce) {
+  .ticker-track {
+    animation: none;
+  }
+}
