@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { Bird, LogIn, Languages, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -26,7 +27,6 @@ import {
   respondToToolSubmit,
 } from "@/mcp/declarative";
 import { fetchProducts } from "@/api";
-import { CATEGORIES } from "./sample-products";
 import { LOCALES, LOCALE_NAMES, t } from "./i18n";
 
 /**
@@ -66,6 +66,26 @@ export function PublicHeader() {
   const locale = useStore((s) => s.locale);
   const query = useStore((s) => s.catalogSearch);
   const category = useStore((s) => s.catalogFilters.category);
+
+  // The option values become the declarative tool's `category` enum: Chrome
+  // synthesises the schema from this markup. A hardcoded list would advertise
+  // categories the catalogue does not have, so read the live facets, the same
+  // ones the grid's own sidebar uses.
+  const [categories, setCategories] = useState<string[]>([]);
+
+  useEffect(() => {
+    let live = true;
+    void fetchProducts({ limit: 1 })
+      .then((result) => {
+        if (live) setCategories(result.facets.categories.map((c) => c.label));
+      })
+      .catch(() => {
+        // No facets means the select falls back to "all", which is honest.
+      });
+    return () => {
+      live = false;
+    };
+  }, []);
 
   function onSubmit(event: React.FormEvent<HTMLFormElement>): void {
     event.preventDefault();
@@ -155,7 +175,7 @@ export function PublicHeader() {
             className="border-input bg-background focus-visible:border-ring focus-visible:ring-ring/50 hidden h-9 max-w-40 rounded-md border px-2 text-sm shadow-xs transition-[color,box-shadow] outline-none focus-visible:ring-[3px] lg:block dark:bg-input/30"
           >
             <option value="">{t(locale, "allTab")}</option>
-            {CATEGORIES.map((name) => (
+            {categories.map((name) => (
               <option key={name} value={name}>
                 {name}
               </option>

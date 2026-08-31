@@ -22,7 +22,6 @@ import {
   setCatalogBrand,
   setCatalogCategory,
   setCatalogColor,
-  setCatalogLoading,
   setCatalogPage,
   setCatalogPriceRange,
   setCatalogSubcategory,
@@ -96,10 +95,6 @@ export function Catalog() {
       page,
     ],
   );
-
-  useEffect(() => {
-    setCatalogLoading(loading);
-  }, [loading]);
 
   const families: ProductFamily[] = data?.families ?? [];
   const categories = data?.facets.categories ?? [];

@@ -7,7 +7,7 @@ import { formatPrice, formatWeight, swatchFor } from "./format";
 import { colourSentence } from "./description";
 import { t } from "./i18n";
 import { ProductImage } from "./product-image";
-import { availabilityOf, type Availability } from "./sample-products";
+import { availabilityOf, type Availability } from "./format";
 
 const DOT: Record<Availability, string> = {
   inStock: "bg-emerald-500",

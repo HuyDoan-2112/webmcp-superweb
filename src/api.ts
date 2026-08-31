@@ -1,74 +1,37 @@
-// Typed fetch wrappers around /api/*.
-//
-// The UI calls these. WebMCP tools do not: a tool drives the UI, and the UI
-// calls the API, which is the same path a click takes. If you are importing
-// this file from src/mcp/, you are writing the wrong layer.
+// The typed client shared by the UI and WebMCP tools.
 
+import { ofetch } from "ofetch";
 import type {
-  Dimension,
   DimensionId,
   Filters,
   Lineage,
-  Metric,
   MetricId,
   MetricResult,
   PipelineRun,
   Product,
-  Session,
   TrustReport,
 } from "@shared/types";
 
-export class ApiFailure extends Error {
-  constructor(
-    message: string,
-    readonly status: number,
-    readonly detail?: string,
-  ) {
-    super(message);
-  }
+type Query = Record<string, string | number | boolean | null | undefined>;
+
+const http = ofetch.create({
+  baseURL: "/api",
+  headers: { accept: "application/json" },
+  responseType: "json",
+  retry: 0,
+});
+
+function get<T>(path: string, query?: Query): Promise<T> {
+  return http<T>(path, {
+    query: query
+      ? Object.fromEntries(
+          Object.entries(query).filter(
+            ([, value]) => value !== null && value !== undefined && value !== "",
+          ),
+        )
+      : undefined,
+  });
 }
-
-function search(params: Record<string, string | number | null | undefined>): string {
-  const q = new URLSearchParams();
-  for (const [key, value] of Object.entries(params)) {
-    if (value === null || value === undefined || value === "") continue;
-    q.set(key, String(value));
-  }
-  const s = q.toString();
-  return s ? `?${s}` : "";
-}
-
-async function get<T>(path: string): Promise<T> {
-  const response = await fetch(path, { headers: { accept: "application/json" } });
-  const body = (await response.json().catch(() => null)) as
-    | (T & { error?: string; detail?: string })
-    | null;
-
-  if (!response.ok || body === null) {
-    throw new ApiFailure(
-      body?.error ?? `Request failed with ${response.status}`,
-      response.status,
-      body?.detail,
-    );
-  }
-  return body;
-}
-
-// ---------------------------------------------------------------- registry
-
-export type MetricsResponse = {
-  metrics: Metric[];
-  dimensions: Dimension[];
-  demoPeriod: string;
-  session: Session;
-};
-
-/** Fetched during boot. Tools register only after this resolves. */
-export function fetchMetrics(): Promise<MetricsResponse> {
-  return get<MetricsResponse>("/api/metrics");
-}
-
-// ------------------------------------------------------------------ query
 
 export function fetchMetric(args: {
   metric: MetricId;
@@ -78,12 +41,14 @@ export function fetchMetric(args: {
   limit?: number;
 }): Promise<MetricResult> {
   const { metric, period, dimension, filters = {}, limit } = args;
-  return get<MetricResult>(
-    `/api/query${search({ metric, period, dimension, limit, ...filters })}`,
-  );
+  return get<MetricResult>("query", {
+    metric,
+    period,
+    dimension,
+    limit,
+    ...filters,
+  });
 }
-
-// ------------------------------------------------------------------ trust
 
 export type TrustResponse = TrustReport & { metricLabel: string };
 
@@ -93,10 +58,8 @@ export function fetchTrust(args: {
   filters?: Filters;
 }): Promise<TrustResponse> {
   const { metric, period, filters = {} } = args;
-  return get<TrustResponse>(`/api/trust${search({ metric, period, ...filters })}`);
+  return get<TrustResponse>("trust", { metric, period, ...filters });
 }
-
-// ---------------------------------------------------------------- lineage
 
 /** The node the endpoint returns: the contract's, plus the derived rejection. */
 export type LineageNodeView = Lineage["nodes"][number] & { rejected?: number };
@@ -105,17 +68,13 @@ export type LineageResponse = Omit<Lineage, "nodes"> & {
   nodes: LineageNodeView[];
 };
 
-export function fetchLineage(): Promise<LineageResponse> {
-  return get<LineageResponse>("/api/lineage");
+export function fetchLineage(metric?: MetricId): Promise<LineageResponse> {
+  return get<LineageResponse>("lineage", { metric });
 }
-
-// ------------------------------------------------------------------- runs
 
 export function fetchRuns(): Promise<{ runs: PipelineRun[] }> {
-  return get<{ runs: PipelineRun[] }>("/api/runs");
+  return get<{ runs: PipelineRun[] }>("runs");
 }
-
-// --------------------------------------------------------------- products
 
 export type Facet = { label: string; n: number };
 
@@ -164,7 +123,7 @@ export type ProductsResponse = {
   facets: CatalogFacets;
 };
 
-export function fetchProducts(args: {
+export type ProductQueryArgs = {
   search?: string;
   category?: string | null;
   brand?: string | null;
@@ -174,8 +133,10 @@ export function fetchProducts(args: {
   maxPrice?: number | null;
   offset?: number;
   limit?: number;
-}): Promise<ProductsResponse> {
-  return get<ProductsResponse>(`/api/products${search({ ...args })}`);
+};
+
+export function fetchProducts(args: ProductQueryArgs): Promise<ProductsResponse> {
+  return get<ProductsResponse>("products", args);
 }
 
 export type ProductDetailResponse = {
@@ -190,5 +151,5 @@ export type ProductDetailResponse = {
 export function fetchProduct(
   productKey: number,
 ): Promise<ProductDetailResponse> {
-  return get<ProductDetailResponse>(`/api/products${search({ productKey })}`);
+  return get<ProductDetailResponse>("products", { productKey });
 }

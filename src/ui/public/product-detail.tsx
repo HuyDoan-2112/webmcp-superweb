@@ -22,7 +22,7 @@ import { describeProduct } from "./description";
 import { t } from "./i18n";
 import { AvailabilityTag, ColorChip, FamilyCard, SwatchRow } from "./product-card";
 import { ProductImage } from "./product-image";
-import { availabilityOf } from "./sample-products";
+import { availabilityOf } from "./format";
 import { fetchProduct } from "@/api";
 import { useAsync } from "@/hooks/use-async";
 

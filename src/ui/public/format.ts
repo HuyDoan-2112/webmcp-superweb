@@ -4,6 +4,7 @@
 // locale, which is what Intl.NumberFormat is for: $1,620.00 in English,
 // 1.620,00 $ in German, ￥ never, because the price is genuinely in dollars.
 
+import type { Product } from "@shared/types";
 import type { Locale } from "@/store";
 import { LOCALE_TAGS } from "./i18n";
 
@@ -117,4 +118,20 @@ export function hashOf(value: string): number {
     hash = ((hash << 5) + hash + value.charCodeAt(i)) >>> 0;
   }
   return hash;
+}
+
+/**
+ * Availability, derived from the product key.
+ *
+ * The `Product` contract carries no stock field and shared/types.ts is frozen,
+ * so this stands in until the API can report real availability. Deterministic,
+ * so a product does not change status between renders.
+ */
+export type Availability = "inStock" | "lowStock" | "madeToOrder";
+
+export function availabilityOf(product: Product): Availability {
+  const slot = product.productKey % 7;
+  if (slot === 0) return "madeToOrder";
+  if (slot === 1 || slot === 4) return "lowStock";
+  return "inStock";
 }

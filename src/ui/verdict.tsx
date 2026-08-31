@@ -1,16 +1,14 @@
+import type { TrustVerdict } from "@shared/types";
 import { Badge } from "@/components/ui/badge";
 
-// Mirrors TrustVerdict in shared/types.ts once that file is written.
 // Three values, not two - see docs/adr/0002-trust-verdict-has-three-values.md.
-export type Verdict = "ok" | "degraded" | "blocked";
-
-const LABEL: Record<Verdict, string> = {
+const LABEL: Record<TrustVerdict, string> = {
   ok: "Verified",
   degraded: "Gap noted",
   blocked: "Blocked",
 };
 
-export function VerdictBadge({ verdict }: { verdict: Verdict }) {
+export function VerdictBadge({ verdict }: { verdict: TrustVerdict }) {
   if (verdict === "ok") {
     return (
       <Badge variant="outline" className="border-emerald-500/40 text-emerald-600">

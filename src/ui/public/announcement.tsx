@@ -15,7 +15,6 @@
 // supplier's. That is why the tools over this carry untrustedContentHint:
 // false.
 
-import { Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useStore } from "@/hooks/use-store";
 import { selectPromotion } from "@/store";
@@ -28,44 +27,62 @@ export function AnnouncementStrip() {
   const day = today();
 
   return (
-    <section aria-label="Announcements" className="bg-muted/30 border-b">
-      <div className="mx-auto w-full max-w-7xl px-4 py-3 sm:px-6">
-        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+    <section aria-label="Announcements" className="border-b">
+      <div className="relative mx-auto w-full max-w-7xl px-4 sm:px-6">
+        <div className="divide-border grid divide-y sm:grid-cols-2 sm:divide-y-0 lg:grid-cols-4 sm:divide-x">
           {PROMOTIONS.map((p) => {
             const running = isLive(p, day);
             const open = selected === p.code;
             return (
-              <button
-                key={p.code}
-                type="button"
-                aria-expanded={open}
-                onClick={() => selectPromotion(open ? null : p.code)}
-                className={cn(
-                  "rounded-lg border p-3 text-left transition",
-                  open ? "ring-primary bg-background ring-2" : "hover:bg-background/60",
-                  !running && "opacity-60",
-                )}
-              >
-                <div className="text-muted-foreground flex items-center gap-1 text-[11px] tracking-wide uppercase">
-                  <Sparkles className="size-3" />
-                  {running ? "Now on" : `From ${p.validFrom}`}
-                </div>
-                <div className={cn("mt-1 text-sm font-medium", !open && "truncate")}>
-                  {p.headline}
-                </div>
+              <div key={p.code} className="relative">
+                <button
+                  type="button"
+                  aria-expanded={open}
+                  aria-controls={`promo-${p.code}`}
+                  onClick={() => selectPromotion(open ? null : p.code)}
+                  className={cn(
+                    "hover:bg-muted/40 flex w-full items-baseline gap-2 px-3 py-2.5 text-left transition",
+                    open && "bg-muted/60",
+                  )}
+                >
+                  <span
+                    aria-hidden="true"
+                    className={cn(
+                      "mt-1.5 size-1.5 shrink-0 rounded-full",
+                      running ? "bg-foreground" : "border-muted-foreground/50 border",
+                    )}
+                  />
+                  <span className="min-w-0">
+                    <span className="block truncate text-sm">{p.headline}</span>
+                    <span className="text-muted-foreground block font-mono text-[11px]">
+                      {running ? p.code : `${p.code} from ${p.validFrom}`}
+                    </span>
+                  </span>
+                </button>
+
+                {/*
+                  Absolutely positioned, and that is the whole point. Rendered
+                  in flow it grew the grid row and shoved the catalogue down the
+                  page on every click, so the thing the visitor was reading
+                  moved out from under them. The card keeps its height, the
+                  detail floats over what is below it, and nothing reflows.
+                */}
                 {open && (
-                  <div className="mt-2 border-t pt-2 text-xs">
+                  <div
+                    id={`promo-${p.code}`}
+                    className="bg-background absolute inset-x-0 top-full z-20 border-x border-b p-3 text-xs shadow-md"
+                  >
                     <p className="text-muted-foreground">{p.body}</p>
-                    <p className="mt-1">
-                      <span className="text-muted-foreground">Claim: </span>
+                    <p className="mt-2">
+                      <span className="text-muted-foreground">Claim. </span>
                       {p.claim.assertion}
                     </p>
-                    <p className="text-muted-foreground mt-1">
-                      Code {p.code}, {p.validFrom} to {p.validTo}
+                    <p className="text-muted-foreground mt-2 font-mono text-[11px]">
+                      {p.validFrom} to {p.validTo}
                     </p>
                   </div>
                 )}
-              </button>
+              </div>
             );
           })}
         </div>
