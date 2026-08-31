@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Bird, LogIn, Languages, Search } from "lucide-react";
+import { Bird, LogIn, Languages, MapPin, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -16,6 +16,7 @@ import {
   setCatalogCategory,
   setCatalogSearch,
   setLocale,
+  setShopCountry,
   selectProduct,
   type Locale,
 } from "@/store";
@@ -27,6 +28,7 @@ import {
 } from "@/mcp/declarative";
 import { signIn } from "@/auth/switcher";
 import { fetchProducts } from "@/api";
+import { readStoreCountries } from "@/promotions";
 import { LOCALES, LOCALE_NAMES, t } from "./i18n";
 
 /**
@@ -66,6 +68,7 @@ import { LOCALES, LOCALE_NAMES, t } from "./i18n";
  */
 export function PublicHeader() {
   const locale = useStore((s) => s.locale);
+  const shopCountry = useStore((s) => s.shopCountry);
   const query = useStore((s) => s.catalogSearch);
   const category = useStore((s) => s.catalogFilters.category);
 
@@ -209,6 +212,36 @@ export function PublicHeader() {
               {LOCALES.map((code) => (
                 <SelectItem key={code} value={code}>
                   {LOCALE_NAMES[code]}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          {/* Where you are shopping from. Offers scoped to a country are for
+              that country; ones scoped to a channel or a category are not about
+              geography and show everywhere. Defaults to all locations, so
+              nothing is hidden until someone asks for it to be. */}
+          <Select
+            value={shopCountry ?? "all"}
+            onValueChange={(value) =>
+              setShopCountry(value === "all" ? null : value)
+            }
+          >
+            <SelectTrigger
+              size="sm"
+              aria-label={t(locale, "locationLabel")}
+              className="hover:bg-accent hover:text-accent-foreground size-9 justify-center border-0 bg-transparent p-0 shadow-none [&>svg:last-child]:hidden dark:bg-transparent"
+            >
+              <MapPin className="size-4 shrink-0" />
+              <span className="sr-only">
+                <SelectValue />
+              </span>
+            </SelectTrigger>
+            <SelectContent align="end">
+              <SelectItem value="all">{t(locale, "allLocations")}</SelectItem>
+              {readStoreCountries().map((c) => (
+                <SelectItem key={c} value={c}>
+                  {c}
                 </SelectItem>
               ))}
             </SelectContent>

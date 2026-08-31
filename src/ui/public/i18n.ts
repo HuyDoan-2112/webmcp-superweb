@@ -96,6 +96,8 @@ const STRINGS = {
     showMore: "Show {count} more",
     showLess: "Show fewer",
     removeFilter: "Remove {label}",
+    locationLabel: "Shopping from",
+    allLocations: "All locations",
     composedOne:
       "{name} is a {subcategory} line from {brand}, made by {manufacturer} and listed under {category}.",
     composedOneSameMaker:
@@ -172,6 +174,8 @@ const STRINGS = {
     showMore: "Ver {count} más",
     showLess: "Ver menos",
     removeFilter: "Quitar {label}",
+    locationLabel: "Comprando desde",
+    allLocations: "Todas las ubicaciones",
     composedOne:
       "{name} es una referencia de {subcategory} de {brand}, fabricada por {manufacturer} y clasificada en {category}.",
     composedOneSameMaker:
@@ -249,6 +253,8 @@ const STRINGS = {
     showMore: "Voir {count} de plus",
     showLess: "Voir moins",
     removeFilter: "Retirer {label}",
+    locationLabel: "Achats depuis",
+    allLocations: "Tous les lieux",
     composedOne:
       "{name} est une référence {subcategory} de {brand}, fabriquée par {manufacturer} et classée dans {category}.",
     composedOneSameMaker:
@@ -326,6 +332,8 @@ const STRINGS = {
     showMore: "{count} weitere anzeigen",
     showLess: "Weniger anzeigen",
     removeFilter: "{label} entfernen",
+    locationLabel: "Einkauf aus",
+    allLocations: "Alle Standorte",
     composedOne:
       "{name} ist eine {subcategory}-Position von {brand}, hergestellt von {manufacturer} und geführt unter {category}.",
     composedOneSameMaker:
@@ -406,6 +414,8 @@ const STRINGS = {
     showMore: "他 {count} 件を表示",
     showLess: "表示を減らす",
     removeFilter: "{label} を外す",
+    locationLabel: "購入地域",
+    allLocations: "すべての地域",
     composedOne:
       "{name} は {brand} の {subcategory} 商品で、製造は {manufacturer}、分類は {category} です。",
     composedOneSameMaker:

@@ -113,6 +113,14 @@ export type State = {
    * entirely fine and only the agent can tell you otherwise.
    */
   selectedPromotionCode: string | null;
+  /**
+   * Which country the visitor is shopping from, or null for all of them.
+   *
+   * Null is the default and stays the default. A promotion hidden by default is
+   * a claim check_promotion could answer about while it is not on screen, which
+   * is the one thing the announcement strip exists to avoid.
+   */
+  shopCountry: string | null;
 };
 
 const initial: State = {
@@ -132,6 +140,7 @@ const initial: State = {
   catalogPage: 1,
   selectedProductKey: null,
   selectedPromotionCode: null,
+  shopCountry: null,
 };
 
 let state: State = initial;
@@ -232,6 +241,11 @@ export function openReport(): void {
 /** Switch between the public catalogue and the signed-in dashboard. */
 export function setSurface(surface: Surface): void {
   setState({ surface });
+}
+
+/** Where the visitor is shopping from. Null means every location. */
+export function setShopCountry(shopCountry: string | null): void {
+  setState({ shopCountry, selectedPromotionCode: null });
 }
 
 /** Set the language of the public interface. Product data is never translated. */

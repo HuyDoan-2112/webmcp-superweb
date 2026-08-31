@@ -12,6 +12,7 @@
 
 import type { Promotion } from "@shared/types";
 import promotionsDoc from "../data/meta/promotions.json";
+import qualityDoc from "../data/meta/quality_checks.json";
 
 const PROMOTIONS = (promotionsDoc as unknown as { promotions: Promotion[] })
   .promotions;
@@ -47,4 +48,48 @@ export function isLive(p: Promotion, day: string = today()): boolean {
 /** Whether its window closed before that day. */
 export function hasEnded(p: Promotion, day: string = today()): boolean {
   return p.validTo < day;
+}
+
+// ---------------------------------------------------------------- locations
+
+/**
+ * The countries Kestrel has stores in.
+ *
+ * Read from the pipeline's own check record rather than from /api/query,
+ * and that is not an arbitrary choice. Query returns five countries, because
+ * France, Germany, Italy and the Netherlands had every one of their rows
+ * rejected at the FX join and so have no gold revenue at all. Those stores
+ * exist; their revenue does not. A location picker built on revenue would
+ * make the blocked countries unpickable, which is precisely backwards: they
+ * are the ones worth looking at.
+ */
+const STORE_COUNTRIES: string[] = [
+  ...new Set(
+    (qualityDoc as unknown as QualityDoc).checks
+      .filter((c) => c.dimension === "country" && c.value !== null)
+      .map((c) => c.value as string),
+  ),
+].sort();
+
+type QualityDoc = {
+  checks: { dimension: string | null; value: string | null }[];
+};
+
+export function readStoreCountries(): readonly string[] {
+  return STORE_COUNTRIES;
+}
+
+/**
+ * Does this promotion apply to someone shopping from `country`?
+ *
+ * A promotion scoped to a country is for that country. One scoped to a channel
+ * or a category is not about geography at all and applies everywhere. Passing
+ * null means "show me everything", which is the default: hiding an offer by
+ * default would make check_promotion answerable about something not on screen.
+ */
+export function appliesIn(promotion: Promotion, country: string | null): boolean {
+  if (country === null) return true;
+  const { dimension, value } = promotion.claim.slice;
+  if (dimension !== "country" || value === null) return true;
+  return value === country;
 }

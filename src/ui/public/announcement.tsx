@@ -24,7 +24,7 @@ import { useLayoutEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 import { useStore } from "@/hooks/use-store";
 import { selectPromotion, type Locale } from "@/store";
-import { isLive, readPromotions, today } from "@/promotions";
+import { appliesIn, isLive, readPromotions, today } from "@/promotions";
 import { t } from "./i18n";
 
 const PROMOTIONS = readPromotions();
@@ -35,8 +35,12 @@ const PANEL_WIDTH = 360;
 export function AnnouncementStrip() {
   const selected = useStore((s) => s.selectedPromotionCode);
   const locale = useStore((s) => s.locale);
+  const country = useStore((s) => s.shopCountry);
   const day = today();
-  const open = PROMOTIONS.find((p) => p.code === selected) ?? null;
+  const shown = PROMOTIONS.filter((p) => appliesIn(p, country));
+  const open = shown.find((p) => p.code === selected) ?? null;
+
+  if (shown.length === 0) return null;
 
   const strip = useRef<HTMLDivElement>(null);
   const [anchor, setAnchor] = useState<number | null>(null);
@@ -76,8 +80,8 @@ export function AnnouncementStrip() {
               the loop has something to run into, and a screen reader reading
               every promotion twice would be a bug rather than a feature. */}
           <div className="ticker-track flex w-max">
-            <TickerRun day={day} locale={locale} selected={selected} />
-            <TickerRun day={day} locale={locale} selected={selected} duplicate />
+            <TickerRun promotions={shown} day={day} locale={locale} selected={selected} />
+            <TickerRun promotions={shown} day={day} locale={locale} selected={selected} duplicate />
           </div>
         </div>
 
@@ -108,11 +112,13 @@ export function AnnouncementStrip() {
 
 /** One pass of every promotion. Rendered twice to make the loop seamless. */
 function TickerRun({
+  promotions,
   day,
   locale,
   selected,
   duplicate,
 }: {
+  promotions: readonly ReturnType<typeof readPromotions>[number][];
   day: string;
   locale: Locale;
   selected: string | null;
@@ -120,7 +126,7 @@ function TickerRun({
 }) {
   return (
     <div className="flex shrink-0 items-center" aria-hidden={duplicate}>
-      {PROMOTIONS.map((p) => {
+      {promotions.map((p) => {
         const running = isLive(p, day);
         const isOpen = selected === p.code;
         return (
