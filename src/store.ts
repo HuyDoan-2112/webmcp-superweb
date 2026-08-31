@@ -121,6 +121,12 @@ export type State = {
    * is the one thing the announcement strip exists to avoid.
    */
   shopCountry: string | null;
+
+  // --- the signed-in customer, all of it client side ---
+  customer: Customer | null;
+  cart: CartLine[];
+  wishlist: number[];
+  enquiries: Enquiry[];
 };
 
 const initial: State = {
@@ -141,6 +147,10 @@ const initial: State = {
   selectedProductKey: null,
   selectedPromotionCode: null,
   shopCountry: null,
+  customer: null,
+  cart: [],
+  wishlist: [],
+  enquiries: [],
 };
 
 let state: State = initial;
@@ -348,3 +358,109 @@ export function selectProduct(selectedProductKey: number | null): void {
   setState({ selectedProductKey });
 }
 
+
+// ---------------------------------------------------------------------------
+// The signed-in customer
+//
+// A customer is not a fourth staff account and does not get an `audience`.
+// Audience is the server's answer-depth dial and lives in the frozen contract;
+// a customer asks the catalogue nothing that needs depth, so identity here is
+// client side only and no cookie is written. Signing in as a customer changes
+// what the page can do for you, not what the server will tell you.
+//
+// NOTHING HERE IS FABRICATED. The cart, the wishlist and the enquiries all
+// start empty and only ever hold what someone did in this session. That is the
+// difference between this and inventing a customer list: the owner sees real
+// actions taken in front of them, not seeded records dressed up as history.
+
+export type Customer = { name: string };
+
+/** One line of the basket. The price is captured when it was added. */
+export type CartLine = {
+  productKey: number;
+  productCode: string;
+  name: string;
+  color: string;
+  /** USD at the moment it went in the basket, not at render time. */
+  price: number;
+  quantity: number;
+};
+
+/** A question a customer sent about a product. Written, never seeded. */
+export type Enquiry = {
+  id: string;
+  customerName: string;
+  productKey: number | null;
+  productName: string | null;
+  message: string;
+  sentUtc: string;
+  answered: boolean;
+};
+
+export function signInCustomer(name: string): void {
+  setState({ customer: { name: name.trim() || "Guest" } });
+}
+
+export function signOutCustomer(): void {
+  setState({ customer: null });
+}
+
+/** Add a line, or raise the quantity of one already in the basket. */
+export function addToCart(line: Omit<CartLine, "quantity">, quantity = 1): void {
+  const existing = state.cart.find((l) => l.productKey === line.productKey);
+  setState({
+    cart: existing
+      ? state.cart.map((l) =>
+          l.productKey === line.productKey
+            ? { ...l, quantity: l.quantity + quantity }
+            : l,
+        )
+      : [...state.cart, { ...line, quantity }],
+  });
+}
+
+/** Set a line's quantity. Zero or less removes it. */
+export function setCartQuantity(productKey: number, quantity: number): void {
+  setState({
+    cart:
+      quantity <= 0
+        ? state.cart.filter((l) => l.productKey !== productKey)
+        : state.cart.map((l) =>
+            l.productKey === productKey ? { ...l, quantity } : l,
+          ),
+  });
+}
+
+export function clearCart(): void {
+  setState({ cart: [] });
+}
+
+/** In or out. Returns what the list now says, so a tool can report it. */
+export function toggleWishlist(productKey: number): boolean {
+  const has = state.wishlist.includes(productKey);
+  setState({
+    wishlist: has
+      ? state.wishlist.filter((k) => k !== productKey)
+      : [...state.wishlist, productKey],
+  });
+  return !has;
+}
+
+export function sendEnquiry(enquiry: Omit<Enquiry, "id" | "sentUtc" | "answered">): Enquiry {
+  const created: Enquiry = {
+    ...enquiry,
+    id: `enq_${state.enquiries.length + 1}_${Math.random().toString(36).slice(2, 8)}`,
+    sentUtc: new Date().toISOString(),
+    answered: false,
+  };
+  setState({ enquiries: [...state.enquiries, created] });
+  return created;
+}
+
+export function markEnquiryAnswered(id: string): void {
+  setState({
+    enquiries: state.enquiries.map((e) =>
+      e.id === id ? { ...e, answered: true } : e,
+    ),
+  });
+}

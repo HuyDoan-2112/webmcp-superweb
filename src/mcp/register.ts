@@ -32,6 +32,8 @@ import { getState, subscribe } from "@/store";
 import { ToolGroup, isSupported, whenSupported } from "./adapter";
 import { mountPanel } from "./panel";
 import { publicTools } from "./tools/catalog";
+import { customerTools } from "./tools/customer";
+import { enquiryTools } from "./tools/enquiries";
 import { promotionTools } from "./tools/promotions";
 import { readTools } from "./tools/read";
 import { trustTools } from "./tools/trust";
@@ -43,12 +45,14 @@ const groups = {
   public: new ToolGroup("public", async () => [
     ...(await publicTools()),
     ...promotionTools(),
+    ...customerTools(),
   ]),
   internal: new ToolGroup("internal", async () => [
     ...readTools(),
     ...trustTools(),
     ...(await viewTools()),
     ...reportEntryTools(),
+    ...enquiryTools(),
   ]),
   report: new ToolGroup("report", reportTools),
   diagnostics: new ToolGroup("diagnostics", diagnosticTools),

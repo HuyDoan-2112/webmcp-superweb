@@ -194,7 +194,7 @@ async function narrowestConstraint(state: State): Promise<string> {
  * answers and the agent has to be told which one it got. Collapsing them would
  * have an agent tell a visitor we do not stock something during an outage.
  */
-type Resolution =
+export type Resolution =
   | {
       kind: "found";
       detail: ProductDetailResponse;
@@ -218,8 +218,12 @@ type Resolution =
  * and only an exact code or name wins outright; a bare number falls through to
  * the key lookup that /api/products keys detail on, which is the same call
  * selectProduct takes when someone clicks a colour swatch.
+ *
+ * Exported so the cart and wishlist tools in customer.ts resolve a product
+ * identifier the same way get_product does, rather than growing a second
+ * lookup that can disagree with this one about what "0106046" means.
  */
-async function resolveProduct(identifier: string): Promise<Resolution> {
+export async function resolveProduct(identifier: string): Promise<Resolution> {
   const trimmed = identifier.trim();
   const needle = trimmed.toLowerCase();
 
