@@ -140,11 +140,23 @@ console.log("public surface   :", Array.isArray(before) ? `${before.length} tool
 console.log("                  ", before);
 console.log("form in the DOM  :", await evaluate(`!!document.querySelector('form[toolname="search_catalog_form"]')`));
 
-console.log("click            :", await evaluate(`(() => {
+// Signing in is two steps now, not one: the button opens a menu of the three
+// seeded people and each lands on a different view. A synthetic .click() will
+// not open a Radix dropdown, which uses pointer capture, so the trigger is
+// opened with the pointer events it actually listens for.
+console.log("click            :", await evaluate(`(async () => {
   const b = [...document.querySelectorAll("header button")].find(x => /sign in/i.test(x.textContent || ""));
   if (!b) return "no sign-in button found; is the public surface on screen?";
+  b.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, button: 0 }));
+  b.dispatchEvent(new PointerEvent("pointerup", { bubbles: true, button: 0 }));
   b.click();
-  return JSON.stringify((b.textContent || "").trim());
+  await new Promise(r => setTimeout(r, 400));
+  const item = [...document.querySelectorAll('[role="menuitem"]')][0];
+  if (!item) return "sign-in menu did not open";
+  item.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, button: 0 }));
+  item.dispatchEvent(new PointerEvent("pointerup", { bubbles: true, button: 0 }));
+  item.click();
+  return JSON.stringify((item.textContent || "").trim().replace(/\s+/g, " "));
 })()`));
 
 await sleep(2500);

@@ -104,7 +104,22 @@ const call = async (name, args) => String(await evaluate(`
 `));
 const names = async () => await evaluate(`document.modelContext.getTools().then(t=>t.map(x=>x.name).sort().join(", "))`);
 
-await evaluate(`([...document.querySelectorAll('button,a')].find(e => /staff sign in/i.test(e.textContent))||{click(){}}).click(), true`);
+// Two steps: the button opens a menu of the three seeded people. Radix uses
+// pointer capture, so a synthetic click alone will not open it.
+await evaluate(`(async () => {
+  const b = [...document.querySelectorAll('button,a')].find(e => /staff sign in/i.test(e.textContent));
+  if (!b) return false;
+  b.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, button: 0 }));
+  b.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, button: 0 }));
+  b.click();
+  await new Promise(r => setTimeout(r, 400));
+  const item = [...document.querySelectorAll('[role="menuitem"]')][0];
+  if (!item) return false;
+  item.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, button: 0 }));
+  item.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, button: 0 }));
+  item.click();
+  return true;
+})()`);
 await sleep(2000);
 console.log("internal   :", await names());
 console.log("\n== start_report ==\n" + await call("start_report", {}));
