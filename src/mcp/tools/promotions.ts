@@ -76,10 +76,19 @@ function listPromotions(): ToolSpec {
       const running = all.filter((p) => isLive(p, day));
       const upcoming = all.filter((p) => p.validFrom > day);
 
+      // RECHECK_AFTER is a fact about the data, not an instruction to the
+      // agent. The page never tells an agent what to do: a site that writes
+      // imperatives into content an agent reads has built prompt injection and
+      // called it a feature. What the site can honestly publish is when its own
+      // answer stops being current, and the agent or the person decides whether
+      // that is worth a scheduled look. That is also why it lives in a tool
+      // return rather than in the strip's copy.
       const line = (p: Promotion) =>
         `${p.code}  ${p.headline}\n` +
-        `  runs        ${runsFor(p)}\n` +
-        `  claims      ${p.claim.assertion}`;
+        `  runs           ${runsFor(p)}\n` +
+        `  claims         ${p.claim.assertion}\n` +
+        `  checked        no\n` +
+        `  recheck_after  ${p.validTo}`;
 
       const body =
         running.length > 0
@@ -98,7 +107,12 @@ function listPromotions(): ToolSpec {
           `and not one of them has been checked. Call check_promotion with a ` +
           `code before you repeat any of them: some of these figures were ` +
           `never fully counted, and a claim built on one of those reads ` +
-          `entirely ordinary.`,
+          `entirely ordinary.\n\n` +
+          `Each "recheck_after" is the day that promotion's window closes and ` +
+          `this answer stops being current. This page has no mailing list and ` +
+          `wants no address: asking again on that date is the whole ` +
+          `subscription, and whether to do that is yours and the person's to ` +
+          `decide, not something this site should be telling you.`,
       );
     },
   };
