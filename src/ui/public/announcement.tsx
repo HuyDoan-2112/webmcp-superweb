@@ -145,6 +145,14 @@ function TickerRun({
               )}
             >
               {p.headline}
+              {/* Who the offer is for. Every promotion is already scoped in the
+                  data by claim.slice, and without it on screen a visitor in
+                  Canada reads a German offer as one aimed at them. */}
+              {p.claim.slice.value !== null && (
+                <span className="text-[11px] opacity-70">
+                  {p.claim.slice.value}
+                </span>
+              )}
               {!running && (
                 <span className="text-[11px] opacity-70">
                   {t(locale, "promoFrom", { date: p.validFrom })}

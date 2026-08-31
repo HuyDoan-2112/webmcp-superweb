@@ -5,11 +5,11 @@ artwork for that variant:
 
     public/products/0106046.jpg    ->  WWI Bluetooth Headphones X250 Black
 
-Product codes are the `productCode` field in `src/ui/public/sample-products.ts`
-(and, once `/api/query` serves the catalogue, the same column from
-`data/gold/dim_product.parquet`).
+Product codes are the `productCode` column of `data/gold/dim_product.parquet`,
+served by `/api/products`. `curl "localhost:5173/api/products?limit=24"` lists
+the codes on the first page of the grid.
 
-- **8:5 aspect.** Cards and the detail page both render `aspect-[8/5]` with
+- **4:3 aspect.** Cards and the detail page both render `aspect-[4/3]` with
   `object-cover`, so anything else is cropped from the centre.
 - **One file per colourway, not per family.** The colour is the point: a
   nine-colour camera is one product here, and switching swatch has to visibly
