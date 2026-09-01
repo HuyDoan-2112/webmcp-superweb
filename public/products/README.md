@@ -1,6 +1,6 @@
 # Product photography
 
-The public range is the product codes in `data/catalog-products.json`. Every
+The public range is the product codes in `data/meta/catalog-products.json`. Every
 listed code has a matching JPEG here, so the storefront never advertises a
 colourway that falls back to generated artwork.
 

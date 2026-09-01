@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import { DuckDBInstance } from "@duckdb/node-api";
 
-const codes = JSON.parse(fs.readFileSync("data/catalog-products.json", "utf8"));
+const codes = JSON.parse(fs.readFileSync("data/meta/catalog-products.json", "utf8"));
 assert.ok(codes.every((code) => /^\d{7}$/.test(code)), "invalid product code");
 const photos = fs.readdirSync("public/products")
   .filter((name) => /^\d{7}\.jpg$/.test(name))

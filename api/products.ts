@@ -21,9 +21,9 @@
 // "families available in Blue" mean what a buyer expects, while still showing
 // the whole colour range on the card once it is found.
 
+import { readFile } from "node:fs/promises";
 import type { Product } from "../shared/types.js";
-import catalogCodes from "../data/catalog-products.json";
-import { query } from "./_lib/duckdb.js";
+import { dataPath, query } from "./_lib/duckdb.js";
 import { json, params } from "./_lib/http.js";
 
 const COLUMNS = `
@@ -87,12 +87,35 @@ const RELATED_LIMIT = 4;
 type Clause = { sql: string; values: unknown[] };
 
 // The warehouse keeps the full Contoso dimension for analysis. The storefront
-// is the smaller photographed range in data/catalog-products.json, so every
-// card, swatch, facet count, detail page and related item uses the same scope.
-const CATALOG: Clause = {
-  sql: `product_code IN (${catalogCodes.map(() => "?").join(", ")})`,
-  values: catalogCodes,
-};
+// is the smaller photographed range in data/meta/catalog-products.json, so
+// every card, swatch, facet count, detail page and related item uses the same
+// scope.
+//
+// Read at runtime rather than imported, for the same reason the checks and the
+// runs are: a JSON import in an ESM serverless function needs an import
+// attribute and the file has to be in the bundle, and the first deploy that
+// tried it returned FUNCTION_INVOKATION_FAILED on every request. vercel.json
+// names data/meta for this function.
+//
+// It throws rather than falling back to the whole dimension. A missing manifest
+// that silently widened the storefront back to 885 families would look like a
+// working page and be the wrong catalogue, which is the same fail-open shape
+// the trust layer had.
+let catalogCodes: Promise<string[]> | null = null;
+
+async function catalog(): Promise<Clause> {
+  if (!catalogCodes) {
+    catalogCodes = readFile(dataPath("meta", "catalog-products.json"), "utf8").then(
+      (text) => JSON.parse(text) as string[],
+    );
+  }
+  const codes = await catalogCodes;
+  if (codes.length === 0) throw new Error("the catalogue manifest is empty");
+  return {
+    sql: `product_code IN (${codes.map(() => "?").join(", ")})`,
+    values: codes,
+  };
+}
 
 function and(...clauses: (Clause | null)[]): Clause {
   const live = clauses.filter((c): c is Clause => c !== null);
@@ -165,7 +188,7 @@ function toFamilies(order: string[], rows: VariantRow[]): ProductFamily[] {
 async function variantsOf(keys: string[]): Promise<VariantRow[]> {
   if (keys.length === 0) return [];
   const holes = keys.map(() => "?").join(", ");
-  const scoped = and(CATALOG, {
+  const scoped = and(await catalog(), {
     sql: `family_key IN (${holes})`,
     values: keys,
   });
@@ -203,7 +226,7 @@ export async function GET(request: Request): Promise<Response> {
   // Free text narrows everything. Someone reading off a purchase order searches
   // by the product code, so that is matched too, and the family name is matched
   // so that a search for the thing finds it whatever colour it comes in.
-  const base: (Clause | null)[] = [CATALOG];
+  const base: (Clause | null)[] = [await catalog()];
   if (search) {
     const like = `%${search.toLowerCase()}%`;
     base.push({
@@ -333,7 +356,7 @@ export async function GET(request: Request): Promise<Response> {
  * the page is the same call with a different key. One door for both.
  */
 async function detail(productKey: number): Promise<Response> {
-  const selected = and(CATALOG, { sql: "product_key = ?", values: [productKey] });
+  const selected = and(await catalog(), { sql: "product_key = ?", values: [productKey] });
   const rows = await query<VariantRow>(
     `SELECT ${COLUMNS}, family_key AS familyKey, family_name AS familyName
      FROM dim_product ${selected.sql}`,
@@ -347,7 +370,7 @@ async function detail(productKey: number): Promise<Response> {
   // Related is other families in the same subcategory. Excluding the family
   // rather than the key matters now: excluding the key alone would fill the row
   // with the same product in four other colours.
-  const related = and(CATALOG, {
+  const related = and(await catalog(), {
     sql: "subcategory_name = ? AND family_key <> ?",
     values: [row.subCategoryName, row.familyKey],
   });

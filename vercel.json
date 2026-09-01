@@ -11,7 +11,7 @@
       "includeFiles": "data/gold/**"
     },
     "api/products.ts": {
-      "includeFiles": "data/gold/**"
+      "includeFiles": "data/{gold,meta}/**"
     },
     "api/trust.ts": {
       "includeFiles": "data/meta/**"
