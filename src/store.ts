@@ -90,6 +90,14 @@ export type State = {
    * A blocked section keeps its heading and carries no figure.
    */
   reportSections: ReportSection[];
+  /**
+   * Whether a person has read the drafted report and let it leave the page.
+   *
+   * False the moment draft_report commits, and only a click sets it true.
+   * There is deliberately no tool for this: an agent that could approve its own
+   * draft would make the step theatre. build_deck reads this and refuses.
+   */
+  reportApproved: boolean;
 
   // --- public catalogue ---
   locale: Locale;
@@ -140,6 +148,7 @@ const initial: State = {
   reportOpen: false,
   breakdownDimension: "country",
   reportSections: [],
+  reportApproved: false,
   locale: "en",
   catalogSearch: "",
   catalogFilters: NO_CATALOG_FILTERS,
@@ -201,7 +210,21 @@ export type ReportSection = {
 };
 
 export function setReportSections(reportSections: ReportSection[]): void {
-  setState({ reportSections, reportOpen: true, view: "report" });
+  // A new draft always lands unapproved, including a redraft of one that was
+  // approved a minute ago. Approval is of the sections in front of the person,
+  // not of the agent or of the act of drafting.
+  setState({ reportSections, reportOpen: true, view: "report", reportApproved: false });
+}
+
+/**
+ * Let the drafted report leave the page.
+ *
+ * Called from the Approve button in src/ui/report.tsx and from nowhere else.
+ * No WebMCP tool calls this, by design: the agent decides what may be written,
+ * the person decides whether it may be sent.
+ */
+export function approveReport(): void {
+  setState({ reportApproved: true });
 }
 
 export function setBreakdownDimension(breakdownDimension: DimensionId): void {

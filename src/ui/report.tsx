@@ -1,8 +1,10 @@
-import { AlertTriangle } from "lucide-react";
+import { AlertTriangle, Check } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
+import { approveReport } from "@/store";
 import { fetchMetric, fetchTrust } from "@/api";
 import { useAsync } from "@/hooks/use-async";
 import { useStore } from "@/hooks/use-store";
@@ -38,6 +40,7 @@ export function Report() {
   const period = useStore((s) => s.period);
   const metricId = useStore((s) => s.metricId);
   const drafted = useStore((s) => s.reportSections);
+  const approved = useStore((s) => s.reportApproved);
 
   const { data, loading } = useAsync(
     () =>
@@ -94,6 +97,34 @@ export function Report() {
           {period} · Prepared by Maya Okonkwo · Kestrel Supply Co.
         </p>
       </div>
+
+      {/*
+        The approval step. The agent decides what may be written, and this
+        decides whether it may be sent. build_deck reads the same flag and
+        refuses while it is false, so the button is the only way out of the
+        page. There is no tool behind it on purpose: a draft an agent can
+        approve on its own has not been approved by anyone.
+      */}
+      {drafted.length > 0 && (
+        <div className="bg-muted/40 flex flex-wrap items-center justify-between gap-3 rounded-lg border p-4">
+          <div className="text-sm">
+            <p className="font-medium">
+              {approved ? "Approved for export" : "Agent draft, awaiting your review"}
+            </p>
+            <p className="text-muted-foreground">
+              {approved
+                ? "build_deck can now read these sections. Redrafting sends it back for review."
+                : `Read the ${blocked.length} refused section${
+                    blocked.length === 1 ? "" : "s"
+                  } and any warning below before approving. Nothing leaves this page until you do.`}
+            </p>
+          </div>
+          <Button size="sm" disabled={approved} onClick={approveReport}>
+            {approved ? <Check /> : null}
+            {approved ? "Approved" : "Approve for export"}
+          </Button>
+        </div>
+      )}
 
       {blocked.length > 0 && (
         <Alert variant="destructive">

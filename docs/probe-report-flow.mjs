@@ -137,4 +137,19 @@ await sleep(1500);
 console.log("\nafter draft:", await names());
 console.log("\n== PAGE ==\n" + await evaluate(`document.querySelector('main').innerText.slice(0,1200)`));
 console.log("\n999,999 on page?", await evaluate(`document.body.innerText.includes("999,999")`));
+
+// The human step. build_deck must refuse a draft nobody has looked at, and the
+// only thing that lifts the refusal is a click. If a tool ever satisfies this,
+// the approval has stopped meaning anything and this probe should fail loudly.
+console.log("\n== build_deck before anyone approved ==\n" + (await call("build_deck", {})).slice(0, 500));
+console.log("\napprove is a tool?", await evaluate(
+  `document.modelContext.getTools().then(ts => ts.some(t => /approve/i.test(t.name)))`));
+console.log("clicked approve  :", await evaluate(`(() => {
+  const b = [...document.querySelectorAll("button")].find(x => /approve for export/i.test(x.textContent || ""));
+  if (!b) return "no approve button on the report";
+  b.click();
+  return true;
+})()`));
+await sleep(800);
+console.log("\n== build_deck after approval ==\n" + (await call("build_deck", {})).slice(0, 700));
 process.exit(0);

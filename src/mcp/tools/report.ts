@@ -499,9 +499,13 @@ function draftReport(): ToolSpec {
               `sentence. Do not strip that sentence when you summarise, because ` +
               `it is the only thing separating the number from a wrong one.\n\n`
             : "") +
-          `Call build_deck to lay this out as slides.`,
+          `The draft is on the page and is waiting for the person to approve ` +
+          `it. Tell them what you drafted and what you refused, then ask them ` +
+          `to press "Approve for export" above the sections. build_deck ` +
+          `refuses until they have, and no tool can approve it for them.`,
         {
           tool: "draft_report",
+          awaitingHumanApproval: true,
           metric,
           period,
           ...stamp(runFreshness),
@@ -538,7 +542,8 @@ function buildDeck(): ToolSpec {
       "committed, so the deck and the page cannot disagree. Blocked sections " +
       "become a slide that says so rather than quietly disappearing, because a " +
       "section that vanishes is a section nobody asks about. Call draft_report " +
-      "first.",
+      "first, then ask the person to approve the draft: this refuses until " +
+      "they have.",
     inputSchema: {
       type: "object",
       properties: {
@@ -555,6 +560,9 @@ function buildDeck(): ToolSpec {
     // It still produces an artifact the person then acts on and hands around,
     // and a client that auto-approved that without a human in the loop is not
     // what anyone wants. Do not "fix" this to true.
+    //
+    // The annotation is a request to the client, not a gate we control, so it
+    // is not the whole answer. The gate is reportApproved below.
     annotations: { readOnlyHint: false, untrustedContentHint: false },
     execute: async (args) => {
       const state = getState();
@@ -567,6 +575,22 @@ function buildDeck(): ToolSpec {
             `about what the report should say, which is exactly the failure ` +
             `this page exists to prevent. Call draft_report first, then call ` +
             `build_deck again.`,
+        );
+      }
+
+      // The human step. Everything else in this file governs what may be
+      // written; this governs whether it may leave. Only the Approve button in
+      // src/ui/report.tsx sets the flag, and no tool does, so an agent cannot
+      // clear its own way out of the page.
+      if (!state.reportApproved) {
+        return text(
+          `The report is drafted but nobody has approved it, so no deck was ` +
+            `built. The person at the screen has an "Approve for export" ` +
+            `button on the report, above the sections. Tell them what you ` +
+            `drafted, name the sections you refused and why, and ask them to ` +
+            `approve. Then call build_deck again.\n\n` +
+            `There is no tool that approves it. That is the point: you decide ` +
+            `what may be written, they decide whether it may be sent.`,
         );
       }
 
