@@ -11,12 +11,10 @@
 // THE CATALOGUE IS A LIST OF FAMILIES, NOT OF SKUs.
 //
 // Contoso ships one row per colourway, so a nine-colour camera is nine rows at
-// one identical price. 2,517 rows are really 885 products. The gold table
-// carries `family_key` and `family_name` for exactly this, and the endpoint
-// groups on them: the visitor sees 885 lines with a row of colour swatches, and
-// the product code, colour and price stay on the variant where they belong.
-// Only 27 families carry more than one distinct price, which is why a family
-// reports `priceMin` and `priceMax` rather than one number.
+// one identical price. The full warehouse dimension has 2,517 rows across 885
+// families; this endpoint first narrows it to the photographed storefront
+// manifest, then groups any selected colourways of one product. Product code,
+// colour and price stay on the variant where they belong.
 //
 // A family matches a filter when any one of its variants does. Colour and price
 // are the only fields that vary inside a family, so this is the rule that makes
@@ -24,6 +22,7 @@
 // the whole colour range on the card once it is found.
 
 import type { Product } from "../shared/types.js";
+import catalogCodes from "../data/catalog-products.json";
 import { query } from "./_lib/duckdb.js";
 import { json, params } from "./_lib/http.js";
 
@@ -60,7 +59,7 @@ export type ProductFamily = {
   manufacturer: string;
   categoryName: string;
   subCategoryName: string;
-  /** Equal to priceMax for all but 27 of the 885 families. */
+  /** Equal to priceMax whenever the selected colourways share one price. */
   priceMin: number;
   priceMax: number;
   /** Distinct colours across the variants, cheapest variant first. */
@@ -86,6 +85,14 @@ const PAGE_DEFAULT = 24;
 const RELATED_LIMIT = 4;
 
 type Clause = { sql: string; values: unknown[] };
+
+// The warehouse keeps the full Contoso dimension for analysis. The storefront
+// is the smaller photographed range in data/catalog-products.json, so every
+// card, swatch, facet count, detail page and related item uses the same scope.
+const CATALOG: Clause = {
+  sql: `product_code IN (${catalogCodes.map(() => "?").join(", ")})`,
+  values: catalogCodes,
+};
 
 function and(...clauses: (Clause | null)[]): Clause {
   const live = clauses.filter((c): c is Clause => c !== null);
@@ -158,11 +165,15 @@ function toFamilies(order: string[], rows: VariantRow[]): ProductFamily[] {
 async function variantsOf(keys: string[]): Promise<VariantRow[]> {
   if (keys.length === 0) return [];
   const holes = keys.map(() => "?").join(", ");
+  const scoped = and(CATALOG, {
+    sql: `family_key IN (${holes})`,
+    values: keys,
+  });
   return query<VariantRow>(
     `SELECT ${COLUMNS}, family_key AS familyKey, family_name AS familyName
-     FROM dim_product WHERE family_key IN (${holes})
+     FROM dim_product ${scoped.sql}
      ORDER BY price, color, product_key`,
-    keys,
+    scoped.values,
   );
 }
 
@@ -192,7 +203,7 @@ export async function GET(request: Request): Promise<Response> {
   // Free text narrows everything. Someone reading off a purchase order searches
   // by the product code, so that is matched too, and the family name is matched
   // so that a search for the thing finds it whatever colour it comes in.
-  const base: (Clause | null)[] = [];
+  const base: (Clause | null)[] = [CATALOG];
   if (search) {
     const like = `%${search.toLowerCase()}%`;
     base.push({
@@ -322,10 +333,11 @@ export async function GET(request: Request): Promise<Response> {
  * the page is the same call with a different key. One door for both.
  */
 async function detail(productKey: number): Promise<Response> {
+  const selected = and(CATALOG, { sql: "product_key = ?", values: [productKey] });
   const rows = await query<VariantRow>(
     `SELECT ${COLUMNS}, family_key AS familyKey, family_name AS familyName
-     FROM dim_product WHERE product_key = ?`,
-    [productKey],
+     FROM dim_product ${selected.sql}`,
+    selected.values,
   );
   if (rows.length === 0) return json({ error: "No such product" }, 404);
 
@@ -335,12 +347,15 @@ async function detail(productKey: number): Promise<Response> {
   // Related is other families in the same subcategory. Excluding the family
   // rather than the key matters now: excluding the key alone would fill the row
   // with the same product in four other colours.
+  const related = and(CATALOG, {
+    sql: "subcategory_name = ? AND family_key <> ?",
+    values: [row.subCategoryName, row.familyKey],
+  });
   const near = await query<{ familyKey: string }>(
-    `SELECT family_key AS familyKey FROM dim_product
-     WHERE subcategory_name = ? AND family_key <> ?
+    `SELECT family_key AS familyKey FROM dim_product ${related.sql}
      GROUP BY family_key
      ORDER BY min(price), family_key LIMIT ${RELATED_LIMIT}`,
-    [row.subCategoryName, row.familyKey],
+    related.values,
   );
 
   const { familyKey: _k, familyName: _n, ...product } = row;

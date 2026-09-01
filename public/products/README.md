@@ -1,7 +1,11 @@
 # Product photography
 
-Drop a JPEG here named for the product code and it replaces the generated
-artwork for that variant:
+The public range is the product codes in `data/catalog-products.json`. Every
+listed code has a matching JPEG here, so the storefront never advertises a
+colourway that falls back to generated artwork.
+
+To add a product, drop a JPEG here named for its product code and add the same
+code to the manifest:
 
     public/products/0106046.jpg    ->  WWI Bluetooth Headphones X250 Black
 
@@ -14,8 +18,9 @@ the codes on the first page of the grid.
 - **One file per colourway, not per family.** The colour is the point: a
   nine-colour camera is one product here, and switching swatch has to visibly
   change the picture.
-- **Missing is fine.** No file means `ProductImage` draws the generated
-  artwork instead, so photography can land one product at a time.
+- **Missing is safe during development.** `ProductImage` still draws generated
+  artwork when a file fails, but the committed catalogue should keep the
+  manifest and JPEGs in lockstep.
 
 ## A caution on what you photograph
 
