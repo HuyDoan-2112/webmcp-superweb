@@ -311,6 +311,17 @@ export class ToolGroup {
 export function onToolChange(listener: () => void): () => void {
   const mc = getModelContext();
   if (!mc) return () => {};
+
+  // ChatGPT Desktop exposes the imperative registration API, but its current
+  // WebMCP subset is not an EventTarget. Treat toolchange as an optional panel
+  // enhancement so a missing event API cannot stop registerTool from running.
+  if (
+    typeof mc.addEventListener !== "function" ||
+    typeof mc.removeEventListener !== "function"
+  ) {
+    return () => {};
+  }
+
   mc.addEventListener("toolchange", listener);
   return () => mc.removeEventListener("toolchange", listener);
 }
