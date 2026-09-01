@@ -1,258 +1,259 @@
 # SuperWeb
 
-**Every internal dashboard needs a person to explain it. WebMCP lets it explain
-itself.**
+A WebMCP demonstration built on Kestrel Supply Co., a fictional electronics
+supplier. The application registers its own tools in the page, so an agent
+operates the real product through the same code path a click takes, rather than
+through a parallel API or a hosted MCP server.
 
-Every organisation has a surface like this. A dashboard holding numbers from
-half a dozen departments, read by someone who owns none of them. When they need
-to know what a number means or whether it can be trusted, they ask someone else.
-That person is busy, and the number gets used anyway.
+| | |
+|---|---|
+| Live | [webmcp-superweb.vercel.app](https://webmcp-superweb.vercel.app) |
+| Demo video | _to be added_ |
+| Licence | MIT, see [LICENSE](LICENSE) |
+| Built for | the [OpenAI WebMCP Challenge](https://openai.com/webmcp-challenge/). First commit Aug 27 2026, no prior work |
 
-## Your app is already the integration
+## Overview
 
-Making an application agent-accessible usually means building a second one: an
-MCP server, a parallel API, tools reimplementing what the frontend already does.
-SuperWeb does none of that. The dashboard exposes its own capabilities as WebMCP
-tools, and the agent drives the real application through the same path a click
-takes. No backend to change, no service to host.
+One origin serves two surfaces, and the registered tool set follows which one is
+open.
 
-The answers are better too, because a tool operating the actual product can see
-what the product sees, including whether a number deserves to be published.
+**The public storefront** is a trade catalogue of 28 photographed products.
+Its tools search and filter the real catalogue, open and compare products,
+manage a cart and wishlist, file trade enquiries, switch between five locales,
+and read Kestrel's authored profile for a product family. That profile carries
+named looks, styling treatments written in the vocabulary a photo editor uses,
+which a caller can hand to an image model to restyle a photograph the person
+already supplied.
 
-Built for the OpenAI WebMCP Challenge. The pattern transfers to any internal
-surface where the data outnumbers the people who understand it.
+**The internal dashboard** appears once someone signs in. Its tools answer
+metric questions, break any metric down along any dimension, check whether a
+given slice is trustworthy, draft a multi-section report, and trace a number's
+lineage back to the system it came from. A report cannot be exported until a
+person approves it on the page.
 
-## The demonstration
+Three constraints hold across both:
 
-Ask the agent for a revenue report. It cuts the month into one section per
-country the pipeline evaluated, publishes four, refuses four, and flags one.
+- **Nothing is measured that the data does not record.** The catalogue holds
+  price, colour, weight, brand and category. It holds no sensor size, aperture,
+  wattage or decibel figure, so profiles are Kestrel's own words and every
+  response carries a block saying so.
+- **No image data passes through WebMCP.** Tools return structured product data
+  and a labelled recipe. Any image edit happens as a separate step in the
+  agent's own environment. Multimodal input and output remain open work in the
+  spec.
+- **A number without evidence behind it does not reach the page.** The report
+  tools read the pipeline's own quality checks and refuse rather than publish.
 
-> I can't publish France, Germany, Italy or the Netherlands. Every order line
-> behind them lost its exchange rate for this month, so there is no number to
-> give you. Online is short about a quarter of its lines for the same reason, so
-> that total is understated.
+## Where WebMCP fits
 
-Nobody asked it to check. The business sells in five currencies, so every order
-converts to USD at the rate for the day it was placed. A month of euro rates is
-missing, so those orders fell out of the pipeline. Not zero, not an error. Gone.
-7,831 of the month's 31,084 order lines were never counted.
+The [WebMCP explainer](https://github.com/webmachinelearning/webmcp) states five
+goals and four non-goals. This build is organised around them.
 
-The four euro countries are the easy half. The loss is total, 410 lines in
-France, 1,739 in Germany, 229 in Italy, 665 in the Netherlands, so those
-sections have no number to mislead anyone with. Online is the dangerous half. It
-keeps 14,043 of its 18,831 lines and produces a figure that looks ordinary and
-is a quarter too small. That is the one that gets pasted into a deck.
+| Goal | How SuperWeb meets it |
+|---|---|
+| Human-in-the-loop workflows | The page moves visibly as the agent works, because tools call the same store setters a click calls. `build_deck` refuses until a person presses Approve, and no registered tool can press it |
+| Simplify agent integration | Schemas carry real enums built at registration time from live data, so the agent cannot name a category, metric or promotion that does not exist. No DOM scraping and no simulated clicks |
+| Prevent disintermediation | Tools drive the front end; the front end calls `/api/*`, the same path a click takes. The application is not bypassed by a backend integration, it is the integration |
+| Code reuse | `search_catalog_form` is the catalogue's existing accessible search form plus three HTML attributes. The browser synthesises the schema from the markup, with no JavaScript and no second code path |
+| Accessibility through agents | The agent operates the same labelled controls a screen reader announces, rather than a parallel surface that can drift from them |
 
-The explanation arrives in the moment the number would have been written down,
-and nobody has to learn what `fx_rate_not_null` means. A hosted MCP server
-could not do this. It would answer from the warehouse and never know what the
-dashboard was about to claim.
+| Non-goal | How this build honours it |
+|---|---|
+| Headless browsing | State lives in the page. The tool surface exists only while the page is open, and the probes drive real Chrome |
+| Fully autonomous workflows | The approval gate is this line. The agent decides what may be written; the person decides whether it may be sent |
+| Replacing backend integrations | `/api/*` stays an ordinary read-only API. No tool composes SQL or touches DuckDB |
+| Replacing the human interface | Every tool moves a control a person could have moved. There is one state path, not a hidden copy of the application |
 
-Two things about that failure are constructed, and both are written down rather
-than left to be discovered. The missing month of euro rates is deleted by
-`etl/sql/01_bronze.sql`, because Contoso ships complete coverage and there is no
-natural gap to point a tool at. And Contoso's amounts are already in US dollars,
-so the pipeline assumes they are local currency in order to have a conversion
-that can break at all. Everything downstream of those two lines is real: the
-join really fails, `checks.py` really records it, and `npm run etl` reproduces
-every count. `etl/README.md` and
-[docs/adr/0003](docs/adr/0003-the-fx-gap-is-planted.md) say which line to
-disagree with.
+## WebMCP tools reference
+
+Registration follows page state, never identity. The surface stays small while
+the answerable space stays large: `breakdown_metric` alone answers roughly forty
+questions, six metrics against eight dimensions, from one registration.
+
+**Public surface**, signed out. Eleven written in TypeScript, one registered by
+the browser from HTML, and one that appears only on a profiled product.
+
+| Tool | Registered | Does |
+|---|---|---|
+| `search_products` | catalogue | Free text and facet search |
+| `get_product` | catalogue | One product family by code or name |
+| `compare_products` | catalogue | Two or more families side by side |
+| `filter_catalog` | catalogue | Moves the grid's filters and paging |
+| `set_language` | catalogue | Switches the storefront locale, five available |
+| `list_promotions` | catalogue | Live offers for a given date |
+| `check_promotion` | catalogue | Whether a promotion's claim survives its trust check |
+| `plan_promotion_reminder` | catalogue | Hands a scheduler the shape of a reminder |
+| `manage_cart` | catalogue | Add, remove, read the basket |
+| `manage_wishlist` | catalogue | Add, remove, read the wishlist |
+| `send_enquiry` | catalogue | Files a trade enquiry against a product |
+| `search_catalog_form` | catalogue | **Declarative**, synthesised from the search form's markup |
+| `get_preview_recipe` | a profiled product is open | Kestrel's notes on that product family, and its named looks |
+
+Profiles exist for 18 subcategories. A Digital SLR carries sixteen looks, four
+written for that kind of camera and twelve house looks shared across the shop.
+Most of the catalogue has no profile, so the tool is genuinely absent on a
+kettle.
+
+**Internal surface**, signed in. The public eleven unregister and these take
+their place, so the count dips before it climbs.
+
+| Tool | Registered | Does |
+|---|---|---|
+| `list_metrics` | dashboard | What is answerable at all |
+| `get_metric` | dashboard | One metric for a period, optionally as a chart |
+| `breakdown_metric` | dashboard | Any metric along any dimension |
+| `describe_metric` | dashboard | What a metric means and how it is computed |
+| `check_data_trust` | dashboard | The verdict for one metric, period and slice |
+| `filter_dashboard` | dashboard | Moves the dashboard's own controls |
+| `start_report` | dashboard | Opens the report builder |
+| `list_enquiries` | dashboard | Trade enquiries filed from the catalogue |
+| `draft_report` | the report is open | Drafts every section, refusing what cannot be published |
+| `build_deck` | the report is open | Lays the approved draft out as slides |
+| `explain_data_issue` | a check came back not-ok | One sentence a non-technical person can use |
+| `trace_lineage` | a check came back not-ok | Walks the chain from the number back to the source system |
 
 ## How WebMCP is implemented
 
-Tools live in `src/mcp/tools/`, registered from `src/mcp/register.ts`. All but
-one are TypeScript. The last is declared in HTML and registered by the browser.
-
-**Tools drive the page, they do not compose SQL.** A tool that moves the
-dashboard calls the same store setter a click calls, so the human and the agent
-share one state path and the page visibly moves when the agent acts. A tool
-answering a question may read the same `/api/*` endpoint the page reads, which
-the trust gate needs, because the dashboard cannot render a verdict for a slice
-nobody asked for. Neither half touches DuckDB or writes SQL. A tool running its
-own query would just be a badly hosted MCP server wearing a browser as a
-costume.
-
-**Capability scales through arguments, not registrations.** `breakdown_metric`
-alone answers roughly forty questions, six metrics against eight dimensions,
-from one registration. Forty named tools would answer the same questions and
-make the agent worse at choosing between them.
-
-**Registration follows page state.** The catalogue registers eight tools plus
-the declarative form. Signing in swaps them for seven, so the count dips from
-nine before it climbs. Opening the report adds two, and a failed check adds the
-two diagnostic tools, topping out at eleven. Nothing is gated by identity. The
-visible surface stays small while the answerable space stays large.
+Tools live in `src/mcp/tools/` and register from `src/mcp/register.ts`. The
+recipe for adding one, and the reasons not to, are in
+[src/mcp/README.md](src/mcp/README.md).
 
 **A form with three attributes is a tool.** The catalogue search box carries
 `toolname`, `tooldescription` and `toolautosubmit`, with `toolparamdescription`
-on its fields, and Chrome 152 registers it as `search_catalog_form` with no
-JavaScript. The browser synthesises the schema from the markup: `<select>`
-options become an enum, `min` becomes `minimum`, `required` becomes the required
-array. Calling it fills the real input, runs the page's own submit handler, and
-answers through `SubmitEvent.respondWith`.
+on its fields, and Chrome registers it as `search_catalog_form` with no
+JavaScript. The browser synthesises the schema from the markup, so `<select>`
+options become an enum and `required` becomes the required array. Calling it
+fills the real input, runs the page's own submit handler, and answers through
+`SubmitEvent.respondWith`. The browser enforces code reuse here rather than a
+developer remembering to. The limit is annotations, which cannot be expressed
+declaratively, so this tool answers with a count and hands off to
+`search_products` for the rows, since product copy is third-party text.
 
-This is the strongest thing here, because the browser enforces the rule above
-rather than a developer remembering it. There is no second code path, and the
-schema cannot drift from the form because it is generated from it. It also
-removes frontend work instead of adding it. An accessible form someone was
-writing anyway becomes an agent capability for three attributes.
+**Tools drive the page, they do not compose SQL.** A tool that moves the page
+calls the same store setter a click calls. A tool answering a question reads the
+same `/api/*` endpoint the page reads. Neither half touches DuckDB.
 
-The limit is annotations, which are not expressible declaratively, so anything
-needing `readOnlyHint` or `untrustedContentHint` stays imperative. That is why
-`search_catalog_form` answers with a count and hands off to `search_products`
-for the rows, since product copy is third-party text.
-
-**Sequencing happens through return values, and decisions also come back as
-data.** A tool's response is context the agent reads, so that is where the next
+**Sequencing happens through return values, and decisions come back as data
+too.** A tool's response is context the agent reads, so that is where the next
 step gets steered. `check_data_trust` and `draft_report` append a JSON block
-carrying the same answer as fields, because WebMCP validates tool input and
-says nothing about output. See `src/mcp/structured.ts`.
+carrying the same answer as fields, because WebMCP validates tool input and says
+nothing about output. A blocked section omits the figure key entirely rather
+than sending null or zero, since the dashboard renders `$0` for a blocked slice
+and "we counted zero" must not serialise like "nothing was counted". Every
+answer carries `dataAsOf` and `answeredAt`.
 
-A blocked section omits the figure key entirely rather than sending null or
-zero. The dashboard renders Germany as `$0` for this period, so "we counted
-zero" and "nothing was counted" must not serialise alike. Every answer also
-carries `dataAsOf`, when the pipeline run finished, and `answeredAt`, when the
-tool ran. A passing verdict over three-week-old data is still a verdict over
-three-week-old data.
-
-**`readOnlyHint` is claimed sparingly.** MCP defines it as "the tool does not
-modify its environment". A tool that moves the page has modified its
-environment, so only the few that answer without moving anything carry the hint.
-Marking every read-oriented tool true would have been the flattering answer
-rather than the correct one, and a judge who knows the spec will check.
-
-Tools are registered only from our own modules, never from fetched content,
+**`readOnlyHint` is claimed sparingly.** MCP defines it as "does not modify its
+environment", and the page is the environment, so only tools that move nothing
+carry it. Tools register only from our own modules, never from fetched content,
 because runtime registration has a published attack surface.
 
-## Two tool surfaces, one origin
+**What the probes found**, rather than what the explainer states. Unregistering
+means aborting the `AbortSignal` passed to `registerTool`; there is no
+`unregisterTool`. `getTools()` returns `inputSchema` as a string, and
+`executeTool` is a string on both sides, so a caller reading `result.content`
+gets undefined and an empty answer with no error. `navigator.modelContext` is
+the same object, not a dead spelling. A declarative tool's lifetime is its
+element's: signing in unmounts the search form and the browser drops
+`search_catalog_form` on its own, with no code of ours.
 
-Signed out, the origin is the Kestrel Supply Co. trade catalogue. Signing in
-switches the shell to the internal dashboard and replaces the tools.
+## Data and the trust layer
 
-That switch is an argument no hosted MCP server can make. One origin serves two
-tool surfaces decided by session, with the agent configuring nothing and holding
-no credential, where a server would need two endpoints and two sets of
-credentials.
+`etl/` runs DuckDB over the Contoso dataset, bronze to silver to gold, and
+writes the quality checks and run metadata that everything downstream reads.
+`api/` serves the resulting parquet read-only. `/api/query` is the only endpoint
+that aggregates, and it composes every column from `shared/metrics.ts`: filter
+values bind as parameters, and metric and dimension names are looked up in the
+registry and rejected if absent, so the only strings reaching SQL text are ones
+this repository wrote. `/api/trust` reads the checks the ETL recorded rather
+than recomputing them, because the rows that would prove a completeness failure
+are the ones that are missing.
 
-It is not a security boundary and the code does not pretend otherwise.
-Registration happens in the browser, so anyone with devtools can call the
-internal setter. The boundary that matters is server side. `api/_lib/session.ts`
-decides the depth of every answer and never refuses a question. Identity here is
-depth, not access.
+The demonstration period, November 2023, is missing a month of euro exchange
+rates, so order lines that needed one fell out of the pipeline: 7,831 of 31,084.
+France, Germany, Italy and the Netherlands lose every line, so those slices
+carry no publishable figure. The Online channel keeps 14,043 of its 18,831 lines
+and produces a figure that looks ordinary and is roughly a quarter short.
 
-The switcher in the sidebar makes that visible. Ask `check_data_trust` about
-Germany as Maya in Operations and the answer is "completeness" and a sentence.
-Pick Tom on Data Platform from the same menu and the same tool, on the same
-question, comes back with `fx_rate_not_null` and 1,739 of 1,739 order lines.
-Nothing was refused in either case. Only the depth moved, and it moved because
-`signIn` rewrote one cookie that the server reads.
+That gap is injected on purpose by two lines in `etl/sql/01_bronze.sql`, because
+Contoso ships complete coverage and there is no natural gap to point a tool at.
+Everything downstream is real: the join fails, `checks.py` records it, and
+`npm run etl` reproduces every count.
+[docs/adr/0003](docs/adr/0003-the-fx-gap-is-planted.md) names the line.
 
-The catalogue groups Contoso's 2,517 SKU rows into 885 product families, since
-one SKU per colourway means a nine-colour camera is nine rows at one price.
-Descriptions are composed field by field from the record, because Contoso ships
-no description text and nothing should be presented as the supplier's words.
-Artwork is generated locally, so no photograph stands in for a product it does
-not depict. Filtering, paging and faceting happen on the server, and the
-catalogue tools quote the same counts because they read the same endpoint.
+The session decides how deep an answer goes, never whether a question may be
+asked. `check_data_trust` on the same slice answers an operations audience with
+plain language and a data platform audience with the check name and the row
+counts. Registration happens in the browser and is not a security boundary,
+which is why the server decides depth: see `api/_lib/session.ts`.
 
-## Architecture
-
-```
-OFFLINE
-
-  Contoso V2  ──▶  Python + DuckDB  ──▶  data/gold/*.parquet
-  orders · fx      bronze → silver → gold  data/meta/*.json
-                                                  │
-                                                  ▼
-SERVER · Vercel serverless functions
-
-  ┌─────────────────────────────────────────────────────┐
-  │  Read-only API over DuckDB                          │
-  │  one file per endpoint in api/                      │
-  └─────────────────────────────────────────────────────┘
-                          ▲
-                          │   the same path a click takes
-BROWSER
-
-  ┌──────────────────┐        ┌───────────────────┐
-  │   WebMCP tools   │ ─────▶ │  Catalogue · UI   │
-  │  registered by   │        │  tiles · chart ·  │
-  │   page context   │        │  report           │
-  └──────────────────┘        └───────────────────┘
-            ▲
-            │
-       The agent  ·  ChatGPT / Chrome
-```
-
-`shared/` holds the contract, the types and the metric registry, imported by the
-server to build SQL and by the client to shape tool schemas. Defined once so it
-cannot drift.
-
-`/api/query` is the only endpoint that aggregates, and it composes every column
-from that registry. Filter values bind as parameters, while metric and dimension
-names are looked up in the registry and rejected if absent, so the only strings
-reaching SQL text are ones this repository wrote. `/api/trust` reads the checks
-the ETL recorded rather than recomputing them, because the rows that would prove
-a completeness failure are the ones that are missing.
-
-The pipeline is small but real. `trace_lineage` walks the chain from a dashboard
-number back to the system it came from, and that chain has to point at something
-true to be worth anything.
-
-| Layer | Choice |
-|---|---|
-| Frontend | Vite, React 19, Tailwind, shadcn/ui, framework-agnostic store |
-| Backend | Vercel serverless functions, DuckDB, read-only |
-| Data | Contoso Data Generator V2, 1M-order tier, MIT |
-| Charts | Recharts |
-| Auth | Demo session. Identity, not security. No passwords |
-
-## Running it
+## Getting started
 
 ```bash
 npm install
 npm run dev          # the whole application on :5173
 ```
 
-That is all of it. No second terminal, no Vercel login. In production `api/`
-runs as Vercel serverless functions; locally `vite-api-plugin.ts` loads the same
-handler modules through Vite. A second process is one more thing to break on
-demo day. The committed gold parquet runs everything. To regenerate it, see
-[etl/README.md](etl/README.md).
+No second terminal and no Vercel login. In production `api/` runs as Vercel
+serverless functions; locally `vite-api-plugin.ts` loads the same handler
+modules through Vite. The committed gold parquet runs everything; to regenerate
+it see [etl/README.md](etl/README.md).
 
-WebMCP needs a browser exposing `document.modelContext`: Chrome with the feature
-on, or ChatGPT's in-app browser. Two probes measure it rather than trusting the
-explainer, and every claim below came from them.
+WebMCP needs a browser exposing `document.modelContext`: Chrome with
+`--enable-features=WebMCP`, or ChatGPT's in-app browser. The deployed origin
+carries an origin trial token, so no flag is needed there. Clear site data
+first, since a leftover session cookie opens the application on the dashboard
+and skips the surface swap.
+
+## Testing
+
+Each script spawns its own Chrome, so `npm run dev` is the only thing you start.
 
 ```bash
+npm run verify                     # typecheck and build
 node docs/probe-modelcontext.mjs   # the browser API surface
 node docs/probe-report-flow.mjs    # the report flow, driven as an agent
 node docs/probe-preview.mjs        # the preview recipe appearing and going away
-npm run eval                      # 20 deterministic scenarios, pass or fail
+npm run eval                       # 20 deterministic scenarios, pass or fail
 ```
 
-What they found. Unregistering means aborting the `AbortSignal` passed to
-`registerTool`; there is no `unregisterTool`. `getTools()` returns `inputSchema`
-as a string, and `executeTool` is a string on both sides, taking arguments as
-JSON and resolving to JSON, so a caller reading `result.content` gets undefined
-and an empty answer with no error. The explainer states neither.
-`navigator.modelContext` is not a dead spelling, it is the same object.
+`npm run eval` is the deterministic half of Chrome's suggested WebMCP
+evaluation: every scenario calls a tool with fixed arguments and asserts on what
+came back, so it measures what the tools do. Whether a model picks the right
+tool or recovers from an ambiguous prompt is not measured anywhere in this repo
+and is not claimed. It asserts exact figures and needs the committed gold
+parquet; pass `--url=` to run it against the deployment.
 
-A declarative tool's lifetime is its element's. Signing in unmounts the search
-form and the browser drops `search_catalog_form` on its own, with no
-`AbortController` and no code of ours. The browser also re-synthesises a
-declarative schema after the markup changes, so a `<select>` filled by an async
-fetch still ends up with a real enum.
+## Project structure
 
-## Repository
-
-| | |
+| Path | Contains |
 |---|---|
-| [CLAUDE.md](CLAUDE.md) | Working context: ownership, conventions, rules |
-| [CONTEXT.md](CONTEXT.md) | Glossary. What our words mean |
-| [docs/open-questions.md](docs/open-questions.md) | What this build measured against the open spec questions |
-| [docs/adr/](docs/adr/) | Decisions we do not want reversed by accident |
+| `src/mcp/` | Registration, the panel, every WebMCP tool. [Recipe here](src/mcp/README.md) |
+| `src/mcp/profiles.ts` | The authored profiles and looks, 18 subcategories |
+| `src/ui/`, `src/components/` | Storefront, dashboard, report, lineage ladder |
+| `src/store.ts` | The one state path a click and a tool both take |
+| `shared/` | Types and the metric registry, read by both sides |
+| `api/` | Read-only serverless endpoints, one file each |
+| `etl/` | Python and DuckDB, bronze to silver to gold |
+| `data/` | Committed gold parquet, pipeline metadata, the photographed range |
+| `docs/` | Probes, the scenario suite, decision records |
+
+The storefront is the 28 photographed products in
+`data/meta/catalog-products.json`, so no card shows a picture of something else.
+The warehouse behind it keeps the full Contoso dimension, 2,517 rows in 885
+families, which is what the dashboard aggregates.
+
+| Layer | Choice |
+|---|---|
+| Frontend | Vite, React 19, Tailwind, shadcn/ui, framework-agnostic store |
+| Backend | Vercel serverless functions, DuckDB, read-only |
+| Data | Contoso Data Generator V2, 1M-order tier, MIT |
+| Auth | Demo session. Identity, not security. No passwords |
+
+[SUBMISSION.md](SUBMISSION.md) is the guided walkthrough with every number
+traced to its file. [CONTEXT.md](CONTEXT.md) is the glossary,
+[CLAUDE.md](CLAUDE.md) the working context,
+[docs/open-questions.md](docs/open-questions.md) what this build measured
+against the open spec questions.
 
 ## Licence
 
