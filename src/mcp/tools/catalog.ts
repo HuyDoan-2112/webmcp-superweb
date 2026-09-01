@@ -472,11 +472,21 @@ function compareProducts(): ToolSpec {
       const identifiers = (Array.isArray(args.products) ? args.products : []).map(
         (v) => String(v),
       );
+      // Name the argument when it is missing. A caller that guessed the key
+      // reads "got 0" and cannot tell an empty array from a misspelled key, so
+      // the one message that could correct the mistake has to say `products`.
+      if (!Array.isArray(args.products)) {
+        return text(
+          `compare_products takes its products in an array named products, ` +
+            `such as {"products": ["0401003", "0401027"]}. Two to four ` +
+            `product codes, product keys or exact product names.`,
+        );
+      }
       if (identifiers.length < 2 || identifiers.length > 4) {
         return text(
-          `compare_products needs between two and four products, got ` +
-            `${identifiers.length}. For a single one call get_product instead, ` +
-            `which also opens it on the page.`,
+          `compare_products needs between two and four products in its ` +
+            `products array, got ${identifiers.length}. For a single one call ` +
+            `get_product instead, which also opens it on the page.`,
         );
       }
 
