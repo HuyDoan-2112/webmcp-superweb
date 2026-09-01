@@ -2,7 +2,7 @@
 //
 // This is identity, not security. There are no passwords and nothing here
 // refuses anyone. It decides the depth of an answer, never whether a question
-// may be asked. See docs/PLAN.md section 6.
+// may be asked.
 
 import type { Audience, Session, User } from "../../shared/types.js";
 

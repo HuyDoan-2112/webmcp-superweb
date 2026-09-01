@@ -4,11 +4,11 @@ Entry point for this repo. Read only what your task needs: touching
 `src/mcp/`, read [src/mcp/README.md](src/mcp/README.md) next; touching
 `etl/`, `data/`, or `api/`, read `etl/README.md`; unsure what a word means,
 check [CONTEXT.md](CONTEXT.md); revisiting a settled decision, read the
-matching file in [docs/adr/](docs/adr/) first. [docs/PLAN.md](docs/PLAN.md)
-is build reasoning and history, not required reading for a routine change.
-Read "Rules for agents" below in full before you write anything; two rules
-there override Claude Code's defaults, no unrequested commits and no
-co-author trailer.
+matching file in [docs/adr/](docs/adr/) first. Everything else is the code:
+the comments carry the reasoning, and where a comment and a document disagree
+the code wins. Read "Rules for agents" below in full before you write
+anything; two rules there override Claude Code's defaults, no unrequested
+commits and no co-author trailer.
 
 ## What this is
 
@@ -113,13 +113,13 @@ node docs/probe-report-flow.mjs    # drive the report flow as an agent would
 
 ## Scope discipline
 
-No feature freeze. The project stays open to new work until submission. What
-replaces the freeze is the cut list in [docs/PLAN.md](docs/PLAN.md) §8, "What
-is left, and what gets cut". When the day runs long, cut from the top and do
-not improvise. Do not build real authentication: the demo session is
-identity, not security.
+No feature freeze, and no cut list either: the build plan that held one was
+deleted once its section numbers had drifted out of step with the code
+citing them. When the day runs long, cut the newest thing rather than the
+thing the demo rests on. Do not build real authentication: the demo session
+is identity, not security.
 
-## Agent skills
+## Issues
 
-Issue tracking, triage labels, and domain-doc conventions live in
-`docs/agents/`; read the file there for the task at hand.
+GitHub Issues on `github.com/HuyDoan-2112/webmcp-superweb`, through the `gh`
+CLI. All are closed as of Sep 1.

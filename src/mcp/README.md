@@ -14,7 +14,7 @@ recipe drifts fastest when it sits far from the code it describes.
 arguments, not registrations.** `breakdown_metric` answers roughly forty
 questions from one registration: six metrics against eight dimensions. Forty
 named tools would answer the same questions and make the agent worse at
-choosing between them. `docs/PLAN.md` §9 puts a number on it: eleven at once is
+choosing between them. This build tops out at eleven registered at once, which is
 enough for confusion.
 
 So the first question is never "what should this tool be called". It is:

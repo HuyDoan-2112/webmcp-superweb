@@ -4,8 +4,7 @@
 // react-dom/server costs no new dependency and produces a complete, labelled
 // chart; a raster would mean a native rasteriser, a bundled font file, and a
 // silent failure mode where a missing font drops every axis label without an
-// error. Measured before choosing: see docs/research/chart-rendering-on-vercel.md
-// and issue #28.
+// error. Both routes were measured on Vercel before choosing this one.
 //
 // THE DRAWING IS NOT WRITTEN HERE. It comes from src/ui/chart-figure.ts, the
 // same module TrendChart renders, so the picture the agent hands over and the

@@ -249,7 +249,6 @@ fetch still ends up with a real enum.
 |---|---|
 | [CLAUDE.md](CLAUDE.md) | Working context: ownership, conventions, rules |
 | [CONTEXT.md](CONTEXT.md) | Glossary. What our words mean |
-| [docs/PLAN.md](docs/PLAN.md) | The reasoning, and where the build stands |
 | [docs/open-questions.md](docs/open-questions.md) | What this build measured against the open spec questions |
 | [docs/adr/](docs/adr/) | Decisions we do not want reversed by accident |
 

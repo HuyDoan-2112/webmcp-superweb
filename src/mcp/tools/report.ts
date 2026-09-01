@@ -600,8 +600,9 @@ function buildDeck(): ToolSpec {
           `deck.\n\n` +
           `This returns the outline rather than a .pptx file. Rendering a real ` +
           `file needs PptxGenJS, which is not installed, and a download, which ` +
-          `the in-app browser blocks. See docs/PLAN.md section 9: build_deck is ` +
-          `rank 12 and the fallback was always to render in the page.`,
+          `the in-app browser blocks. Rendering in the page was always the ` +
+          `fallback, so this is the outline and the report itself is the ` +
+          `artifact a person hands around.`,
       );
     },
   };

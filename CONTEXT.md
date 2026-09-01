@@ -5,7 +5,7 @@ operating the page can tell whether a number deserves to be written down.
 
 This file is a glossary. It records what our words mean, not how anything is
 built. Implementation lives in the code; the reasoning behind it is in
-[docs/PLAN.md](docs/PLAN.md) and [docs/adr/](docs/adr/).
+[docs/adr/](docs/adr/), and the code itself.
 
 ## Language
 

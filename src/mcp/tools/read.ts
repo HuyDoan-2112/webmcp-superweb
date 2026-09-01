@@ -15,7 +15,7 @@
 // let it.
 //
 // find_drivers is deliberately absent. It overlaps breakdown_metric and
-// docs/PLAN.md ranks it cut-first.
+// It is the first thing to cut if the tool list needs shortening.
 //
 // breakdown_metric returns a pipe table rather than hand-aligned lines. That
 // was a change to the return value, not to the schema: a `format` enum would
