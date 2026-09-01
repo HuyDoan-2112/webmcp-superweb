@@ -73,11 +73,44 @@ Four things are not what a first guess produces. Each one produces wrong numbers
 
 **There is no channel column.** Nowhere in the eight tables. The only proxy is the single online store, `store.CountryCode = '--'`, against every physical store. Silver derives `channel` from that, which is what `shared/metrics.ts` advertises.
 
-## Currency denomination
+## Currency denomination, and the assumption this pipeline makes
 
-Amounts in `orderrows` are USD-denominated in the source. `avg(UnitPrice / product.Price)` sits at about 1.15 to 1.18 for every currency including USD; if the amounts were local, EUR and GBP would sit near 0.9 and 0.8. So `CurrencyCode` records the currency the customer paid in, not the denomination of the stored number.
+Read this before quoting any figure from the dashboard, because one modelling
+assumption sits under all of them and it is not the obvious one.
 
-**Silver declares the amounts to be local currency and converts them through the FX join anyway.** This is a deliberate choice over the alternative of keeping them as USD and converting the other way for the regional sections. Synthetic data for a fictional company has no ground truth to contradict, it matches the transform text the metric registry already publishes, and it keeps the FX join load bearing: no rate, no `net_amount_usd`, the line drops. That last property is the whole demo.
+**What the source actually contains.** Amounts in `orderrows` are
+USD-denominated. `avg(UnitPrice / product.Price)` sits at about 1.15 to 1.18 for
+every currency including USD; if the amounts were local, EUR and GBP would sit
+near 0.9 and 0.8. So `CurrencyCode` records the currency the customer paid in,
+not the denomination of the stored number.
+
+**What this pipeline does instead.** Silver declares those amounts to be local
+currency and converts them to USD through the FX join. That is a stated
+assumption, not a discovered fact, and it is the one place where this repository
+models the data differently from how Contoso shipped it.
+
+**Why, stated plainly so a reader can disagree.** The demo needs a conversion
+step that can fail, because the argument is that a broken pipeline stage
+silently removes rows and nobody notices. Contoso ships no such step: with
+amounts already in USD there is nothing to convert and nothing to break. The
+alternative was to keep the amounts as USD and invent a different failure, an
+unmapped store or a duplicated row or a late partition, each of which is equally
+constructed and none of which produces the property that makes this demo work:
+no rate, no `net_amount_usd`, the line drops. See
+`docs/adr/0003-the-fx-gap-is-planted.md`.
+
+**What the assumption does and does not buy.** It does not change the shape of
+the failure, the row counts, or the verdicts. The 7,831 rejected lines are a
+real consequence of a real join against a table this pipeline really emptied,
+and `npm run etl` reproduces every number. What it does mean is that the dollar
+figures on the dashboard are the source amounts multiplied by a rate, so they
+are not the same dollars Contoso shipped. For a fictional company with no ground
+truth to contradict, that costs nothing. On real books it would be wrong, and a
+production version of this pipeline would either receive genuinely
+local-currency amounts or drop the conversion and plant its failure elsewhere.
+
+The honest summary: the failure is real, the conversion that carries it is
+assumed. Both are written down rather than left for a reader to discover.
 
 ## Period
 

@@ -48,6 +48,17 @@ and nobody has to learn what `fx_rate_not_null` means. A hosted MCP server
 could not do this. It would answer from the warehouse and never know what the
 dashboard was about to claim.
 
+Two things about that failure are constructed, and both are written down rather
+than left to be discovered. The missing month of euro rates is deleted by
+`etl/sql/01_bronze.sql`, because Contoso ships complete coverage and there is no
+natural gap to point a tool at. And Contoso's amounts are already in US dollars,
+so the pipeline assumes they are local currency in order to have a conversion
+that can break at all. Everything downstream of those two lines is real: the
+join really fails, `checks.py` really records it, and `npm run etl` reproduces
+every count. `etl/README.md` and
+[docs/adr/0003](docs/adr/0003-the-fx-gap-is-planted.md) say which line to
+disagree with.
+
 ## How WebMCP is implemented
 
 Tools live in `src/mcp/tools/`, registered from `src/mcp/register.ts`. All but

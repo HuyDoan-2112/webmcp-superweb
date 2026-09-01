@@ -25,3 +25,22 @@ surprising thing to find in a repository. That is accepted, and paid for by
 making it loud: its own commented block, this ADR, and a paragraph in
 `etl/README.md`. The one thing that must never happen is the delete becoming
 quiet enough to read as a bug.
+
+## The second construction, noted 2026-09-01
+
+An audit pointed out that the deletion is not the only thing this pipeline
+constructs. Contoso's amounts are already USD-denominated, so silver declaring
+them local currency in order to convert them is itself an assumption, and the
+FX join only has something to do because of it.
+
+That is fair and it stands. Two constructions, not one: the pipeline assumes a
+denomination, then breaks the conversion that assumption creates. Neither is
+hidden, both are in `etl/README.md` under "Currency denomination", and the
+consequences of both are reproducible by running `npm run etl`.
+
+What was rejected was quietly restating the assumption as a discovery. A demo
+resting on a constructed failure is honest when it says so and dishonest when it
+implies the data came that way. The rejected-row counts, the verdicts and the
+lineage chain are all real; the denomination underneath them is assumed. A
+reader who disagrees with the assumption can now say exactly which line they
+disagree with.
