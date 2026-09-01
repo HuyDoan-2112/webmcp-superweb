@@ -117,6 +117,11 @@ export const registrationLog: string[] = [];
  */
 const BUILD_DEADLINE_MS = 8_000;
 
+/** Record a registration step from outside the adapter. */
+export function noteRegistration(line: string): void {
+  note(line);
+}
+
 function note(line: string): void {
   registrationLog.push(line);
   if (registrationLog.length > 40) registrationLog.shift();

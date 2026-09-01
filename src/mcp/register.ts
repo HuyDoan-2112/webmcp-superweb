@@ -31,7 +31,12 @@
 // surface and this is the whole of our defence against it.
 
 import { getState, subscribe } from "@/store";
-import { ToolGroup, isSupported, whenSupported } from "./adapter";
+import {
+  ToolGroup,
+  isSupported,
+  noteRegistration,
+  whenSupported,
+} from "./adapter";
 import { mountPanel } from "./panel";
 import { publicTools } from "./tools/catalog";
 import { customerTools } from "./tools/customer";
@@ -101,6 +106,9 @@ function reconcile(): void {
     // the page permanently unable to register or unregister anything again.
     .catch((error) => {
       console.error("[superweb] reconciling the tool groups failed", error);
+      noteRegistration(
+        `reconcile failed: ${error instanceof Error ? error.message : String(error)}`,
+      );
     });
 }
 
@@ -132,12 +140,20 @@ export function startModelContext(): void {
   // gets a panel that says so, not a missing panel and a silent failure.
   mountPanel();
 
+  noteRegistration(
+    `startModelContext ran, API ${isSupported() ? "present" : "absent"} at that moment`,
+  );
+
   if (!isSupported()) {
     // Not a refusal, a wait. Chrome has the API before we run; a host that
     // injects it later would otherwise be told, permanently and silently, that
     // this page offers nothing. Registration picks up when it lands.
     void whenSupported().then((arrived) => {
       if (!arrived) {
+        noteRegistration(
+          "document.modelContext never appeared within the wait, so " +
+            "registration never started",
+        );
         console.warn(
           "[superweb] document.modelContext never appeared, so no WebMCP " +
             "tools were registered. The dashboard works normally. Chrome 149 " +
@@ -157,6 +173,7 @@ export function startModelContext(): void {
 
 /** Subscribe and reconcile. Split out so a late-arriving API can call it too. */
 function begin(): void {
+  noteRegistration("reconciler started");
   subscribe(reconcile);
   reconcile();
 }
