@@ -160,6 +160,21 @@ function escapeHtml(value: string): string {
   );
 }
 
+/**
+ * Which build is on screen, read from the loaded bundle's own filename.
+ *
+ * An in-app browser has no devtools and no view-source, so "reload and try
+ * again" is unfalsifiable: a stale bundle and a real result look identical.
+ * Vite hashes the entry filename per build, so the DOM already carries a build
+ * id and the panel can just show it.
+ */
+function buildId(): string {
+  const src = document.querySelector<HTMLScriptElement>(
+    'script[src*="/assets/index-"]',
+  )?.src;
+  return src?.match(/index-([A-Za-z0-9_-]+)\.js/)?.[1] ?? "dev";
+}
+
 async function render(root: HTMLElement): Promise<void> {
   const body = root.querySelector<HTMLElement>(".mcp-body");
   const count = root.querySelector<HTMLElement>(".mcp-count");
@@ -205,14 +220,15 @@ async function render(root: HTMLElement): Promise<void> {
       : `<li>nothing attempted to register</li>`;
     body.innerHTML =
       `<p class="mcp-note">This browser has <code>document.modelContext</code>, ` +
-      `but it reports no registered tools. What registration did:</p>` +
+      `but it reports no registered tools. Build <code>${escapeHtml(buildId())}</code>. ` +
+      `What registration did:</p>` +
       `<ul>${lines}</ul>`;
     return;
   }
 
   body.innerHTML =
     `<p class="mcp-note">Registered right now, read from the browser itself. ` +
-    `Signing in changes this list.${
+    `Build <code>${escapeHtml(buildId())}</code>. Signing in changes this list.${
       supportsDeclarativeTools()
         ? " This browser also supports declarative form tools."
         : ""
