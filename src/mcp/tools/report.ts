@@ -446,7 +446,7 @@ function draftReport(): ToolSpec {
         }
       }
 
-      commit(drafted);
+      commit(drafted, metric, period);
 
       const blocked = drafted.filter((s) => s.verdict === "blocked");
       const degraded = drafted.filter((s) => s.verdict === "degraded");
@@ -527,8 +527,12 @@ function draftReport(): ToolSpec {
  * anything itself; it hands the store the same shape the report component
  * reads, and the page does the rest.
  */
-function commit(sections: DraftedSection[]): void {
-  setReportSections(sections);
+function commit(
+  sections: DraftedSection[],
+  metricId: string,
+  period: string,
+): void {
+  setReportSections(sections, { metricId, period });
 }
 
 function buildDeck(): ToolSpec {
@@ -594,8 +598,17 @@ function buildDeck(): ToolSpec {
         );
       }
 
+      // The title names what the sections measure, not what the dashboard
+      // happens to show now. draft_report takes its metric and period from its
+      // own arguments, so the two diverge without anyone touching a control,
+      // and a deck titled for the wrong month is the exact failure this whole
+      // file exists to prevent.
+      const scope = state.reportScope;
       const title =
-        asText(args.title) ?? `${state.metricId}, ${state.period}`;
+        asText(args.title) ??
+        (scope
+          ? `${scope.metricId}, ${scope.period}`
+          : `${state.metricId}, ${state.period}`);
       const publishable = sections.filter((s) => s.verdict !== "blocked");
       const held = sections.filter((s) => s.verdict === "blocked");
 

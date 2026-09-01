@@ -98,6 +98,15 @@ export type State = {
    * draft would make the step theatre. build_deck reads this and refuses.
    */
   reportApproved: boolean;
+  /**
+   * The metric and period the drafted sections were built for.
+   *
+   * draft_report reads these from its own arguments, never from the dashboard,
+   * so the two differ the moment a draft lands for anything but what is on
+   * screen. build_deck titles the deck from this rather than from the live
+   * dashboard, so the heading names what the figures underneath it measure.
+   */
+  reportScope: { metricId: string; period: string } | null;
 
   // --- public catalogue ---
   locale: Locale;
@@ -149,6 +158,7 @@ const initial: State = {
   breakdownDimension: "country",
   reportSections: [],
   reportApproved: false,
+  reportScope: null,
   locale: "en",
   catalogSearch: "",
   catalogFilters: NO_CATALOG_FILTERS,
@@ -184,12 +194,19 @@ export function setView(view: View): void {
   setState({ view });
 }
 
+// A drafted report is approved for the page the person read, and the report
+// page renders the dashboard's metric and period around the committed
+// sections. Moving either one changes that page, so the approval stops
+// covering what is on it and build_deck asks again. Only a real change clears
+// it: setting a metric to the value it already holds is not a move.
 export function setPeriod(period: string): void {
-  setState({ period });
+  const moved = period !== state.period;
+  setState({ period, ...(moved ? { reportApproved: false } : {}) });
 }
 
 export function setMetric(metricId: string): void {
-  setState({ metricId });
+  const moved = metricId !== state.metricId;
+  setState({ metricId, ...(moved ? { reportApproved: false } : {}) });
 }
 
 export function setFilters(patch: Partial<Filters>): void {
@@ -209,11 +226,24 @@ export type ReportSection = {
   verdict: TrustVerdict;
 };
 
-export function setReportSections(reportSections: ReportSection[]): void {
+export function setReportSections(
+  reportSections: ReportSection[],
+  reportScope: { metricId: string; period: string },
+): void {
   // A new draft always lands unapproved, including a redraft of one that was
   // approved a minute ago. Approval is of the sections in front of the person,
   // not of the agent or of the act of drafting.
-  setState({ reportSections, reportOpen: true, view: "report", reportApproved: false });
+  //
+  // The scope travels with the sections for the same reason the verdict does:
+  // whoever titles the deck later has no other way to know what these figures
+  // measure, and the dashboard behind them may have moved on since.
+  setState({
+    reportSections,
+    reportScope,
+    reportOpen: true,
+    view: "report",
+    reportApproved: false,
+  });
 }
 
 /**
