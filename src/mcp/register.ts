@@ -33,6 +33,7 @@
 import { getState, subscribe } from "@/store";
 import {
   ToolGroup,
+  getModelContext,
   isSupported,
   noteRegistration,
   whenSupported,
@@ -144,6 +145,13 @@ export function startModelContext(): void {
     `startModelContext ran, API ${isSupported() ? "present" : "absent"} at that moment`,
   );
 
+  // TEMPORARY, remove before submission. One trivial tool registered with a
+  // single argument, because a host that supports only a subset of WebMCP may
+  // reject the two-argument call our whole lifecycle depends on. If this
+  // appears in a browser where the other twelve do not, the second argument is
+  // the difference and the panel will say so.
+  void probeRegistration();
+
   if (!isSupported()) {
     // Not a refusal, a wait. Chrome has the API before we run; a host that
     // injects it later would otherwise be told, permanently and silently, that
@@ -169,6 +177,33 @@ export function startModelContext(): void {
   }
 
   begin();
+}
+
+/**
+ * Register one no-op tool the simplest way the spec allows.
+ *
+ * No signal, no enums, no data behind it, so nothing about it can fail except
+ * the call itself. That is the point: it separates "this host rejects our
+ * descriptors" from "this host rejects our second argument".
+ */
+async function probeRegistration(): Promise<void> {
+  const mc = getModelContext();
+  if (!mc) return;
+  try {
+    await mc.registerTool({
+      name: "webmcp_probe",
+      description: "Check whether WebMCP registration works on this page.",
+      inputSchema: { type: "object", properties: {}, additionalProperties: false },
+      annotations: { readOnlyHint: true },
+      execute: async () => ({ content: [{ type: "text", text: "ok" }] }),
+    });
+    noteRegistration("webmcp_probe: registered with one argument, no signal");
+  } catch (error) {
+    noteRegistration(
+      `webmcp_probe: one-argument registerTool rejected, ` +
+        `${error instanceof Error ? error.message : String(error)}`,
+    );
+  }
 }
 
 /** Subscribe and reconcile. Split out so a late-arriving API can call it too. */

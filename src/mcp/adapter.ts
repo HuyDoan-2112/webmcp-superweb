@@ -262,7 +262,25 @@ export class ToolGroup {
       // reconciler's queue.
       try {
         await mc.registerTool(guard(spec), { signal: controller.signal });
-      } catch (error) {
+      } catch (firstError) {
+        // A host that supports only part of WebMCP may take the descriptor and
+        // refuse the options argument. Retry with one argument rather than lose
+        // the tool, and say so, because what we lose by succeeding here is
+        // unregistration: there is no unregisterTool, so a tool registered
+        // without a signal stays for the life of the page and the surface swap
+        // cannot remove it.
+        try {
+          await mc.registerTool(guard(spec));
+          note(
+            `${spec.name}: two-argument registerTool rejected ` +
+              `(${firstError instanceof Error ? firstError.message : String(firstError)}), ` +
+              `registered with one argument instead, so it cannot be unregistered`,
+          );
+          continue;
+        } catch {
+          // Fall through to the original report: neither call shape worked.
+        }
+        const error = firstError;
         console.error(
           `[superweb] registering "${spec.name}" in group "${this.id}" failed`,
           error,
