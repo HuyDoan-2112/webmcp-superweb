@@ -143,9 +143,29 @@ function note(line: string): void {
   for (const listener of noteListeners) listener();
 }
 
+/**
+ * Close the schema, because a strict validator rejects one that is open.
+ *
+ * ChatGPT's site-tools guide writes `additionalProperties: false` into every
+ * example, and OpenAI's function-calling validator treats a schema without it
+ * as invalid rather than as permissive. Chrome does not care either way, so
+ * setting it costs nothing here and may be the difference between a tool that
+ * is offered to a model and one that is silently dropped.
+ *
+ * Written once at registration rather than in each tool module: the schemas are
+ * built from live data in twelve places and this is a property of how we
+ * register, not of what any one tool means.
+ */
+function closeSchema(schema: Record<string, unknown>): Record<string, unknown> {
+  if (schema.type !== "object") return schema;
+  if ("additionalProperties" in schema) return schema;
+  return { ...schema, additionalProperties: false };
+}
+
 function guard(spec: ToolSpec): ToolSpec {
   return {
     ...spec,
+    inputSchema: closeSchema(spec.inputSchema),
     execute: async (args, context) => {
       try {
         return await spec.execute(args, context);
