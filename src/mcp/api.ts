@@ -158,8 +158,11 @@ export async function readCheck(
     return { value: fromTrustReport(live, slice), source: "api" };
   }
 
+  // Match the metric too. Without it a gross_profit question fell through to
+  // net_revenue's check and came back as a verdict about gross_profit, which
+  // is the same silent substitution the server was doing with slices.
   const wanted = ARTIFACT_QUALITY.checks.filter(
-    (c) => c.period === slice.period,
+    (c) => c.period === slice.period && c.metric === slice.metric,
   );
   const match = wanted.find(
     (c) =>

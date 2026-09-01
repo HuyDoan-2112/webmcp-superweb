@@ -22,6 +22,7 @@
 // Row counts follow the same rule. /api/trust withholds them from an audience
 // that did not ask, and a withheld count is omitted rather than sent as 0.
 
+import type { TrustVerdict } from "@shared/types";
 import { text, type ToolResponse } from "./adapter";
 
 /** Drop keys whose value is undefined, so absence survives serialisation. */
@@ -77,4 +78,16 @@ export function rowFields(
 ): { expectedRows?: number; rejectedRows?: number } {
   if (expectedRows <= 0) return {};
   return { expectedRows, rejectedRows };
+}
+
+/**
+ * May a figure under this verdict be written down?
+ *
+ * Only ok and degraded. "unchecked" is not a soft pass: it means the pipeline
+ * recorded nothing about this slice, and the whole project is the claim that
+ * silence is not approval. Every caller uses this rather than testing against
+ * "blocked", which is what let unchecked through when the fourth value arrived.
+ */
+export function isPublishable(verdict: TrustVerdict): boolean {
+  return verdict === "ok" || verdict === "degraded";
 }

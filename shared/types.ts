@@ -144,7 +144,18 @@ export type MetricResult = {
  *
  * See docs/adr/0002-trust-verdict-has-three-values.md.
  */
-export type TrustVerdict = "ok" | "degraded" | "blocked";
+/**
+ * A fourth value, added after an audit found the third was doing two jobs.
+ *
+ * "unchecked" is not a softer "blocked". It means the pipeline recorded no
+ * check for this exact slice, so there is no evidence either way. Without it,
+ * an empty check set reduced to "ok" and the API told an agent that a metric
+ * nobody had ever validated was safe to publish. Silence from the pipeline is
+ * not approval, and now the type can say so.
+ *
+ * See docs/adr/0002-trust-verdict-has-three-values.md, which this supersedes.
+ */
+export type TrustVerdict = "ok" | "degraded" | "blocked" | "unchecked";
 
 /**
  * A named assertion about data quality, evaluated during a run. Its name is

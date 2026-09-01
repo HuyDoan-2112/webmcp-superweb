@@ -60,17 +60,36 @@ export async function checksFor(
     return asked !== undefined && asked === c.value;
   });
 
-  return scoped.length > 0 ? scoped : applicable.filter((c) => c.dimension === null);
+  // Exact or nothing. The old code fell back to the unscoped whole-period
+  // check when no scoped one matched, so asking about Spain, which has no
+  // stores and no check, was answered with November's month-wide verdict
+  // wearing Spain's name. Widening a slice the caller named is the same
+  // failure as inventing a figure for it.
+  return scoped;
 }
 
-const RANK: Record<TrustVerdict, number> = { ok: 0, degraded: 1, blocked: 2 };
+const RANK: Record<TrustVerdict, number> = {
+  ok: 0,
+  degraded: 1,
+  blocked: 2,
+  unchecked: 3,
+};
 
+/**
+ * The worst verdict across the checks that cover this exact slice.
+ *
+ * No checks means "unchecked", never "ok". The reduce used to seed with "ok",
+ * so an empty set, which is what every metric other than net_revenue produces,
+ * came back as a pass. That told an agent gross_profit for Germany was
+ * publishable when nothing had ever looked at it.
+ */
 export async function verdictFor(
   metric: MetricId,
   period: string,
   filters: Filters,
 ): Promise<TrustVerdict> {
   const checks = await checksFor(metric, period, filters);
+  if (checks.length === 0) return "unchecked";
   return checks.reduce<TrustVerdict>(
     (worst, c) => (RANK[c.verdict] > RANK[worst] ? c.verdict : worst),
     "ok",

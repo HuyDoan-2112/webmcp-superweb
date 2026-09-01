@@ -32,7 +32,7 @@ import {
   type Sourced,
 } from "../api";
 import { text, type ToolSpec } from "../adapter";
-import { rowFields, stamp, textWithData } from "../structured";
+import { isPublishable, rowFields, stamp, textWithData } from "../structured";
 import { asDimensionId, asMetricId, asPeriod, asText, DIMENSION_ENUM, METRIC_ENUM } from "./args";
 
 /**
@@ -129,6 +129,13 @@ function advice(verdict: TrustVerdict): string {
       `the more dangerous of the two bad states, because a blocked section ` +
       `cannot be pasted into a deck and this one can. Call explain_data_issue ` +
       `for the sentence to attach to it.`
+    );
+  if (verdict === "unchecked")
+    return (
+      `Do not publish this figure, and do not read this as a pass. The ` +
+      `pipeline recorded no check for this exact slice, so there is no ` +
+      `evidence either way. Ask about a slice it did evaluate, or say plainly ` +
+      `that this one was never verified.`
     );
   return (
     `This slice is clean and can be published as it stands. Every row that ` +
@@ -280,9 +287,12 @@ function checkDataTrust(): ToolSpec {
           period,
           dimension,
           value,
-          checked: true,
+          // Whether the pipeline actually looked, not whether this tool ran.
+          // An unchecked verdict with checked true is a contradiction, and it
+          // is the field an agent would branch on first.
+          checked: row.verdict !== "unchecked",
           verdict: row.verdict,
-          publishable: row.verdict !== "blocked",
+          publishable: isPublishable(row.verdict),
           ...rowFields(row.expectedRows, row.rejectedRows),
           check: row.name,
           runId: row.runId ?? checkedRunId(),

@@ -34,7 +34,7 @@ import {
   type CheckRow,
 } from "../api";
 import { text, type ToolSpec } from "../adapter";
-import { rowFields, stamp, textWithData } from "../structured";
+import { isPublishable, rowFields, stamp, textWithData } from "../structured";
 import { asMetricId, asPeriod, asText, DIMENSION_ENUM, METRIC_ENUM } from "./args";
 import { asDimensionId } from "./args";
 
@@ -149,6 +149,20 @@ function bodyFor(
         `The pipeline recorded no data quality check for this slice in ` +
         `${period}, so nothing stands behind a number here.`,
       verdict: "blocked",
+    };
+  }
+
+  if (check.verdict === "unchecked") {
+    // Not a softer blocked. Nothing was ever evaluated here, so the section
+    // says that rather than borrowing a passing verdict's confidence, and it
+    // carries no figure for the same reason a blocked one does not.
+    return {
+      heading: request.heading,
+      body:
+        `No data quality check covers this slice for ${period}, so nothing ` +
+        `stands behind a number here. That is an absence of evidence, not a ` +
+        `pass.`,
+      verdict: "unchecked",
     };
   }
 
@@ -373,7 +387,7 @@ function draftReport(): ToolSpec {
         // slice is never queried, so its number cannot reach this function and
         // therefore cannot reach the page by any route, including a bug.
         const publishable =
-          check.value !== null && check.value.verdict !== "blocked";
+          check.value !== null && isPublishable(check.value.verdict);
         const figure = publishable
           ? await figureFor(metric, period, request)
           : null;
@@ -395,9 +409,9 @@ function draftReport(): ToolSpec {
           dimension,
           value: request.value,
           verdict: section.verdict,
-          publishable: section.verdict !== "blocked",
-          figure: section.verdict === "blocked" ? undefined : figure?.value,
-          ...(check.value && section.verdict !== "blocked"
+          publishable: isPublishable(section.verdict),
+          figure: isPublishable(section.verdict) ? figure?.value : undefined,
+          ...(check.value && isPublishable(section.verdict)
             ? rowFields(check.value.expectedRows, check.value.rejectedRows)
             : {}),
         });
