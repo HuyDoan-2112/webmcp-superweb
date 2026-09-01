@@ -97,6 +97,22 @@ function describeFailure(name: string, cause: unknown): string {
   );
 }
 
+/**
+ * What registration actually did, in order, for the panel to show.
+ *
+ * console.error is the right place for these and the wrong place to read them:
+ * a host browser with no devtools reachable, which is every in-app browser, hid
+ * the one line that explains an empty tool list. The panel renders this when it
+ * has nothing else to show, so a page that registered nothing says why on
+ * screen rather than looking indistinguishable from a page that never tried.
+ */
+export const registrationLog: string[] = [];
+
+function note(line: string): void {
+  registrationLog.push(line);
+  if (registrationLog.length > 40) registrationLog.shift();
+}
+
 function guard(spec: ToolSpec): ToolSpec {
   return {
     ...spec,
@@ -141,7 +157,10 @@ export class ToolGroup {
   async open(): Promise<void> {
     if (this.controller) return;
     const mc = getModelContext();
-    if (!mc) return;
+    if (!mc) {
+      note(`group "${this.id}": no document.modelContext, nothing registered`);
+      return;
+    }
     const controller = new AbortController();
     this.controller = controller;
 
@@ -153,6 +172,10 @@ export class ToolGroup {
       specs = await this.build();
     } catch (error) {
       console.error(`[superweb] building tool group "${this.id}" failed`, error);
+      note(
+        `group "${this.id}": build failed, ` +
+          `${error instanceof Error ? error.message : String(error)}`,
+      );
       this.controller = null;
       return;
     }
@@ -173,8 +196,13 @@ export class ToolGroup {
           `[superweb] registering "${spec.name}" in group "${this.id}" failed`,
           error,
         );
+        note(
+          `${spec.name}: registerTool rejected, ` +
+            `${error instanceof Error ? error.message : String(error)}`,
+        );
       }
     }
+    note(`group "${this.id}": open, ${specs.length} tools built`);
   }
 
   close(): void {

@@ -13,7 +13,13 @@
 // Plain DOM and inline styles on purpose. It sits outside the React tree, so it
 // cannot be unmounted by a surface switch, and it holds no state of its own.
 
-import { getModelContext, listTools, onToolChange, whenSupported } from "./adapter";
+import {
+  getModelContext,
+  listTools,
+  onToolChange,
+  registrationLog,
+  whenSupported,
+} from "./adapter";
 import { supportsDeclarativeTools } from "./declarative";
 
 const ELEMENT_ID = "superweb-mcp-panel";
@@ -186,6 +192,22 @@ async function render(root: HTMLElement): Promise<void> {
       );
     })
     .join("");
+
+  // An empty list with the API present is the one state the panel used to
+  // report as if it were normal. It is not: either nothing tried to register,
+  // or every attempt was rejected by a host that has the API but will not take
+  // our descriptors. Show what happened, because the console that holds the
+  // real error is unreachable in an in-app browser.
+  if (tools.length === 0) {
+    const lines = registrationLog.length
+      ? registrationLog.map((l) => `<li>${escapeHtml(l)}</li>`).join("")
+      : `<li>nothing attempted to register</li>`;
+    body.innerHTML =
+      `<p class="mcp-note">This browser has <code>document.modelContext</code>, ` +
+      `but it reports no registered tools. What registration did:</p>` +
+      `<ul>${lines}</ul>`;
+    return;
+  }
 
   body.innerHTML =
     `<p class="mcp-note">Registered right now, read from the browser itself. ` +
