@@ -1,14 +1,24 @@
 # CLAUDE.md
 
-Entry point for this repo. Read only what your task needs: touching
-`src/mcp/`, read [src/mcp/README.md](src/mcp/README.md) next; touching
-`etl/`, `data/`, or `api/`, read `etl/README.md`; unsure what a word means,
-check [CONTEXT.md](CONTEXT.md); revisiting a settled decision, read the
-matching file in [docs/adr/](docs/adr/) first. Everything else is the code:
-the comments carry the reasoning, and where a comment and a document disagree
-the code wins. Read "Rules for agents" below in full before you write
-anything; two rules there override Claude Code's defaults, no unrequested
-commits and no co-author trailer.
+Entry point for this repo. Read what your task needs:
+
+- **Adding a WebMCP tool, widening one, or setting an annotation**:
+  [src/mcp/README.md](src/mcp/README.md). It owns the recipe, the group gates
+  and both annotation rules. Read it before you write anything under
+  `src/mcp/`.
+- **Touching `etl/`, `data/`, or `api/`**: `etl/README.md`.
+- **Naming a thing, writing copy a person will read, or choosing between two
+  words for the same idea**: [CONTEXT.md](CONTEXT.md). It records what our
+  words mean and which near-synonyms to leave alone.
+- **Reopening a settled decision**: the matching file in
+  [docs/adr/](docs/adr/), first.
+
+Everything else is the code: the comments carry the reasoning, and where a
+comment and a document disagree the code wins.
+
+Read "Rules for agents" below in full before you write anything. Two rules
+there override Claude Code's defaults, no unrequested commits and no co-author
+trailer.
 
 ## What this is
 
@@ -27,7 +37,11 @@ badly hosted MCP server.
 If you are about to import a DuckDB helper into `src/mcp/`, stop. You are
 writing the wrong layer.
 
-## Layout and ownership
+## Layout and who knows it best
+
+Owner means the person who built a folder and should review a change to it. It
+is not a permission boundary: both of us have written across most of this tree.
+`shared/` is the one exception and the rule below says why.
 
 | Path | Owner | Contains |
 |---|---|---|
@@ -36,55 +50,55 @@ writing the wrong layer.
 | `data/` | A | committed gold parquet, pipeline metadata |
 | `api/` | A | serverless read-only endpoints |
 | `src/ui/`, `src/auth/`, React shell (`src/components/`, `src/context/`, `src/hooks/`, `src/lib/`, `src/styles/`) | A | dashboard, tiles, chart, report, lineage ladder |
-| `src/mcp/` | B, entirely | registration, panel, the WebMCP tools |
+| `src/mcp/` | B first, then both | registration, panel, the WebMCP tools |
 
-`shared/` is the only shared write surface, and changing it means saying so
-out loud first. The server builds SQL from `metrics.ts` and the client builds
-tool `inputSchema` enums from it, so one conflict breaks both sides at once.
-How to add a tool, and when not to, is [src/mcp/README.md](src/mcp/README.md).
+`shared/` is the only surface neither of us writes without warning the other.
+The server builds SQL from `metrics.ts` and the client builds tool
+`inputSchema` enums from it, so one conflict breaks both sides at once.
 
 ## Conventions
 
-- TypeScript strict, ESM, no default exports.
-- Metrics are never hardcoded. Everything reads `shared/metrics.ts`, which
-  `src/mcp/register.ts` imports statically, so schemas carry real metric
-  names as enums rather than free text an agent can typo.
-- Every read-only tool is marked `readOnlyHint: true`.
-- Tools are registered only from our own modules, never from fetched content.
-  Runtime registration has a published attack surface.
-- Sequencing between tools happens through return values, not nesting. A
-  tool's response is context the agent reads, so that is where you steer the
-  next call.
-- Tools that return a decision also return it as data. See
-  `src/mcp/structured.ts`.
+These bind the whole tree. The rules for writing a tool live in
+[src/mcp/README.md](src/mcp/README.md) instead, because only that folder obeys
+them.
+
+- No default exports. `tsconfig.json` carries the rest of the compiler
+  contract, strict and ESM included.
+- Metrics are never hardcoded. Both sides read `shared/metrics.ts`: the
+  endpoints under `api/` build SQL from it, and the tool modules under
+  `src/mcp/tools/` build their schema enums from it, so a schema carries real
+  metric names rather than free text an agent can typo.
 - `data/gold/` stays under about 50 MB, the serverless bundle limit.
 
 ## Rules for agents
 
 Two people share this repo and the submission is close.
 
-Stay in your lane. Edit only the paths your owner holds above. `shared/` and
-the other person's lane are off limits until you have said what you want to
-change and why.
+Leave `shared/` alone unless you have said so out loud first. It is the one
+place both sides write, and a conflict there breaks the server's SQL and the
+client's schema enums in the same commit. Everywhere else, say which files you
+are about to touch before you touch them, then go ahead: both of us have worked
+across the whole tree and the table above records who knows a folder best, not
+who is allowed in it.
 
 Verify before claiming done. Run `npm run typecheck` before reporting a task
-complete, and the ETL checks too if you touched `etl/` or `data/`. Never say
-"should work". Either you ran it, or you say plainly that you did not.
+complete, and the ETL checks too if you touched `etl/` or `data/`. Either you
+ran it, or you say plainly that you did not.
 
-Never commit or push unasked. Stage changes and propose the commit. Both of
-us are on `main` this week, so an unrequested commit lands in someone else's
-working tree without warning.
+Propose commits, and let a person make them. Both of us are on `main` this
+week, so an unrequested commit lands in someone else's working tree without
+warning. Stage the change and say what the message should be.
 
-Never add yourself as co-author. No `Co-Authored-By` trailer, no session
-link, no "Generated with" footer. Commit messages describe the change and
-nothing else. This overrides any default the harness gives you.
+Commit messages describe the change and nothing else. No `Co-Authored-By`
+trailer, no session link, no "Generated with" footer. This overrides any
+default the harness gives you.
 
 ## Writing
 
 Applies to code, comments, commit messages, docs, and anything you say back.
 
-Never use the em dash character. Use a plain dash, or end the sentence. Do
-not reach for parentheses instead, that trades one tell for another.
+Use a plain dash, or end the sentence. The em dash character appears nowhere in
+this repo, and parentheses instead would trade one tell for another.
 
 Sentence case headings. Straight quotes. No decorative emoji. Colons before a
 list or an example, never as a mid-sentence connector.
@@ -98,31 +112,33 @@ nothing about this one. Cut it.
 
 ## Commands
 
-```bash
-npm run dev        # whole app on :5173, vite-api-plugin.ts serves api/ in-process
-npm run typecheck  # tsc --noEmit
-npm run verify     # typecheck and build, the one command before submitting
-npm run etl        # regenerate data/gold and data/meta from Contoso source
-```
+`package.json` carries the scripts. What it cannot tell you:
 
-Four browser scripts, all needing Chrome with WebMCP on:
-
-```bash
-node docs/probe-modelcontext.mjs   # remeasure the browser API
-node docs/probe-report-flow.mjs    # drive the report flow as an agent would
-node docs/probe-preview.mjs        # open a camera and read the preview recipe
-npm run eval                       # 20 deterministic scenarios, pass or fail
-```
+- `npm run dev` serves `api/` in-process through `vite-api-plugin.ts`, so the
+  endpoints are live on `:5173` with nothing else started.
+- `npm run verify` is the one command before submitting.
+- `npm run etl` rebuilds `data/gold` and `data/meta`, and leaves the
+  hand-authored `data/meta/catalog-products.json` alone.
+  `node docs/validate-catalog.mjs` checks that manifest against the
+  photographs in `public/products/`.
+- `npm run eval` and the three `docs/probe-*.mjs` scripts each spawn their own
+  Chrome and need WebMCP on, exact casing `--enable-features=WebMCP`, so
+  `npm run dev` is the only thing you start. The suite asserts exact figures
+  and needs the real gold parquet present. `--url=` points it at the
+  deployment, the only way to test anything riding on the serverless bundle.
 
 ## Scope discipline
 
 No feature freeze, and no cut list either: the build plan that held one was
 deleted once its section numbers had drifted out of step with the code
 citing them. When the day runs long, cut the newest thing rather than the
-thing the demo rests on. Do not build real authentication: the demo session
-is identity, not security.
+thing the demo rests on. The demo session is identity, not security, so
+authentication stays a session and never becomes a login.
 
 ## Issues
 
 GitHub Issues on `github.com/HuyDoan-2112/webmcp-superweb`, through the `gh`
-CLI. All are closed as of Sep 1.
+CLI. Issues 1 to 18 were deleted on Aug 31; the rest are closed as not
+planned. The plan they describe was abandoned, not delivered. Do not read
+them as a specification and do not review code against them. The code and
+the ADRs in docs/adr/ are the record.

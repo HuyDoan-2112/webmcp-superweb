@@ -6,7 +6,9 @@ collects it, because the pattern is only worth having if the next person can
 follow it without reading five files first.
 
 It lives here rather than in `CLAUDE.md` because it is about this folder, and a
-recipe drifts fastest when it sits far from the code it describes.
+recipe drifts fastest when it sits far from the code it describes. `CLAUDE.md`
+keeps the rules that bind the whole tree; every rule about writing a tool is
+here.
 
 ## Start by not adding one
 
@@ -14,8 +16,12 @@ recipe drifts fastest when it sits far from the code it describes.
 arguments, not registrations.** `breakdown_metric` answers roughly forty
 questions from one registration: six metrics against eight dimensions. Forty
 named tools would answer the same questions and make the agent worse at
-choosing between them. This build tops out at eleven registered at once, which is
-enough for confusion.
+choosing between them. This build tops out at thirteen registered at once, which
+is enough for confusion. That peak is the public surface with a profiled camera
+open: eleven imperative tools, plus `search_catalog_form` which the browser
+registers from the HTML, plus `get_preview_recipe`. The internal surface peaks
+at twelve, with the report open and a check failed. Count both before adding
+anything, because the declarative tool is easy to forget.
 
 So the first question is never "what should this tool be called". It is:
 
@@ -40,19 +46,31 @@ Only when all three are no is the answer a new tool.
 These are not per-tool judgement calls. Changing one of them is changing the
 architecture, and needs saying out loud first.
 
-- **A tool never queries data itself**, per CLAUDE.md's rule. It drives the UI
-  through the store, and the UI reads `/api/*`. `src/mcp/api.ts` is the only
-  read seam and its header says where the line sits.
+- **A tool never queries data itself.** It drives the UI through the store, and
+  the UI reads `/api/*`. `src/mcp/api.ts` is the only read seam and its header
+  says where the line sits. This is the rule `CLAUDE.md` leads with, because it
+  is the one that stops a wrong layer being written at all.
 - **A tool that moves the page goes through the store**, never around it, so the
   human and the agent share one state path. `src/store.ts` has a "Public
   surface" block listing which setter each tool drives.
-- **Schema enums are built at registration time from real data** - metric ids
+- **Schema enums are built at registration time from real data**: metric ids
   from `shared/metrics.ts`, catalogue facets from an `/api/products` probe,
   promotion codes from `data/meta/promotions.json`. The agent cannot name a
   thing that does not exist, because the browser will not let it.
-- **Tools are registered only from modules imported here, and sequencing
-  happens through return values, not nesting**, both per CLAUDE.md's
-  Conventions.
+- **Tools are registered only from modules imported here.** Runtime
+  registration from fetched content has a published attack surface.
+- **Sequencing happens through return values, not nesting.** A tool's response
+  is context the agent reads, so that is where you steer the next call. Name
+  the tools the agent can actually see: a public tool must never point at an
+  internal one.
+- **A tool that returns a decision returns it as data too**, through
+  `src/mcp/structured.ts`, so the agent can act on the decision without parsing
+  the sentence that carries it.
+- **A person approves what leaves the page, and no tool can.** `build_deck`
+  refuses while `reportApproved` is false, only the button in
+  `src/ui/report.tsx` sets it, and redrafting clears it. An agent that could
+  approve its own draft would make the step theatre. See `CONTEXT.md` on
+  approval.
 - **Registration follows page state and never identity.** Nothing here refuses
   anyone anything. The surface swap is not a security boundary; the server
   decides answer depth. See `CONTEXT.md` on surface versus audience.
@@ -69,13 +87,19 @@ architecture, and needs saying out loud first.
   so the tool is genuinely absent on a kettle.
 - **`readOnlyHint`.** The MCP definition is "does not modify its environment",
   and the page is the environment. A tool that calls a store setter is `false`
-  even when the change is trivially reversible.
+  even when the change is trivially reversible. Every tool that calls none is
+  `true`.
 - **`untrustedContentHint`.** True for third-party text: product names, brand
   names, supplier copy. False for text we wrote, which is why the promotions
-  tools carry `false` while `catalog.ts` carries `true`. This one reads
-  backwards at a glance, so say why in a comment.
-- **What the return value steers toward.** Name the tools the agent can actually
-  see. A public tool must never point at an internal one.
+  tools carry `false` while `catalog.ts` carries `true`. A response that mixes
+  the two follows the third-party half, because the hint describes the riskiest
+  thing in the payload. This one reads backwards at a glance, so say why in a
+  comment.
+- **What state the tool commits.** A tool that writes to the store writes
+  everything a later reader needs, in the same call. `draft_report` commits the
+  metric and period alongside the sections, because `build_deck` titles the
+  deck long after the dashboard has moved on and has no other way to know what
+  the figures measure.
 
 ## The steps
 
@@ -87,7 +111,9 @@ architecture, and needs saying out loud first.
 4. Set both annotations deliberately and comment the reasoning.
 5. End the return value with what to call next, and why.
 6. Add the factory to a group in `register.ts`.
-7. Run `npm run typecheck`.
+7. Run `npm run typecheck`, then `npm run eval` with `npm run dev` up, because
+   the suite drives the real browser surface and a registration mistake shows
+   there and nowhere else.
 
 ## Two worked examples
 
@@ -103,3 +129,6 @@ number was bad would make the tool redundant.
 two existing tools, pointing at `/api/chart`, which renders the same Recharts
 module `TrendChart` renders. The endpoint stamps the trust verdict into the
 image, because an image travels where a transcript does not.
+
+Those issue numbers survive; issues 1 to 18 were deleted. `CLAUDE.md` says what
+the tracker is and is not.

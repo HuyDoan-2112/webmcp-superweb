@@ -7,6 +7,11 @@ This file is a glossary. It records what our words mean, not how anything is
 built. Implementation lives in the code; the reasoning behind it is in
 [docs/adr/](docs/adr/), and the code itself.
 
+Each entry ends in an _Avoid_ line listing the near-synonyms that entry beats.
+Those words are not banned English, they are words that already mean something
+else here, or that flatten a distinction the code depends on. Reach for the
+entry's word in code, comments, tool descriptions and anything a person reads.
+
 ## Language
 
 ### The product
@@ -140,6 +145,25 @@ anonymous visitor is an audience like any other and gets catalogue depth, never
 a refusal.
 _Avoid_: role, permission, access level
 
+**Approval**:
+A person's decision that a drafted report may leave the page. A click records
+it and nothing else does: no tool can set it, and redrafting revokes it,
+because what is approved is the sections in front of the person rather than the
+act of drafting. Say "approval" for the decision and "export" for what it
+permits.
+_Avoid_: sign-off, confirmation, review, publish (publishing is what approval
+allows, not the decision itself)
+
+**Report scope**:
+The metric and period a set of drafted sections was built for, committed with
+them and read back when the deck is titled. draft_report takes both from its
+own arguments and never from the dashboard, so the two diverge the moment a
+draft lands for anything but what is on screen. The scope travels with the
+sections for the same reason the verdict does: whoever titles the deck later
+has no other way to know what the figures underneath it measure.
+_Avoid_: current metric, selected period, dashboard state (the point of the
+term is that it is none of those)
+
 **Blocked section**:
 A report section rendered without its number, because the data behind it did
 not earn the right to be published. The blocked section is the demo.
@@ -181,3 +205,30 @@ verdict of any kind. Nobody looked, which is not the same as looked and failed,
 and it calls for a different action. It sits above the verdict rather than
 inside it, so the three verdicts stay three.
 _Avoid_: unverified, unknown, pending, a fourth verdict
+
+### Profiles and looks
+
+**Profile**:
+Kestrel's own notes on a kind of product: what it suits, how the shop would
+describe its character, and what to think about before buying. Written by us
+and always in words, because the catalogue records no sensor size, aperture,
+wattage or decibel figure and a profile that stated one would be inventing it.
+Keyed by subcategory, so a claim is true of the class rather than measured on
+the unit.
+_Avoid_: specification, spec sheet, product data, review
+
+**Look**:
+A named treatment Kestrel suggests for a photograph the person already has.
+It is the shop's taste, in the way a paint chart is, and it is never something
+the camera does: the treatment is applied afterwards, and a tool returning one
+says so in the same breath.
+_Avoid_: filter, effect, preset, mode, camera setting, anything implying the
+hardware produces it
+
+**Recipe**:
+The field-by-field treatment behind one look, written in the vocabulary a photo
+editor already uses so it can be handed to an image model unchanged. The word
+is deliberate: a recipe is an instruction, not a specification and not a
+promise about what the hardware will do.
+_Avoid_: preset, config, spec, preview (a preview is the picture you get after
+applying a recipe, not the recipe)
