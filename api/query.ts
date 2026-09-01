@@ -15,6 +15,7 @@ import {
 import { query } from "./_lib/duckdb.js";
 import { fail, json, params } from "./_lib/http.js";
 import { verdictFor } from "./_lib/trust.js";
+import { latestRun } from "./_lib/runs.js";
 
 export async function GET(request: Request): Promise<Response> {
   const p = params(request);
@@ -50,18 +51,37 @@ export async function GET(request: Request): Promise<Response> {
       prior.sql,
       prior.params,
     );
-    const priorBy = new Map(priorRows.map((r) => [r.label ?? "", r.value ?? 0]));
+    // Null stays null everywhere below. A slice with no surviving rows used to
+    // come back as value 0 with delta -1, so Germany, whose every order line
+    // was rejected at the FX join, reported zero revenue down a hundred per
+    // cent. That is a fabricated number in the one product built to refuse
+    // them, and it is worse than an absence because it looks like an answer.
+    const priorBy = new Map(priorRows.map((r) => [r.label ?? "", r.value]));
 
-    const total = rows.reduce((sum, r) => sum + (r.value ?? 0), 0);
-    const out: Row[] = rows.map((r) => {
-      const before = priorBy.get(r.label ?? "") ?? 0;
-      const value = r.value ?? 0;
-      return {
-        label: r.label,
-        value,
-        delta: before === 0 ? undefined : (value - before) / Math.abs(before),
-        share: q.dimension && total !== 0 ? value / total : undefined,
-      };
+    // Share is only meaningful for a metric you can add up. gross_margin is a
+    // ratio, and its "shares" summed to 1.0 across countries, which says a
+    // 56 per cent margin is 20 per cent of the total margin. shared/metrics.ts
+    // already records the unit, so the registry decides this, not this file.
+    const additive = metric.unit !== "ratio";
+    const total = additive
+      ? rows.reduce((sum, r) => sum + (r.value ?? 0), 0)
+      : 0;
+
+    const out: Row[] = rows.flatMap((r) => {
+      if (r.value === null) return [];
+      const before = priorBy.get(r.label ?? "");
+      return [
+        {
+          label: r.label,
+          value: r.value,
+          delta:
+            before === null || before === undefined || before === 0
+              ? undefined
+              : (r.value - before) / Math.abs(before),
+          share:
+            additive && q.dimension && total !== 0 ? r.value / total : undefined,
+        },
+      ];
     });
 
     return json({
@@ -72,6 +92,10 @@ export async function GET(request: Request): Promise<Response> {
       unit: metric.unit,
       rows: out,
       verdict: await verdictFor(metricId, period, filters),
+      // The run this number came from, so a caller can refuse to publish a
+      // figure and a verdict that came from different snapshots. /api/trust
+      // reports the same field.
+      runId: (await latestRun())?.id ?? "unknown",
     });
   } catch (error) {
     if (error instanceof QueryError) return fail(error.message, 400);

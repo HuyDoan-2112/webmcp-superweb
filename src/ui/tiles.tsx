@@ -45,10 +45,16 @@ export function Tiles() {
   return (
     <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
       {data.map((result) => {
+        // No row means no figure. It used to coerce to zero, so a slice whose
+        // rows were all rejected showed a confident 0 with a verdict badge
+        // beside it, which is the number this dashboard exists to refuse.
         const row = result.rows[0];
-        const value = row?.value ?? 0;
+        const value = row?.value;
         const delta = row?.delta;
-        const blocked = result.verdict === "blocked";
+        const blocked =
+          result.verdict === "blocked" ||
+          result.verdict === "unchecked" ||
+          value === undefined;
         return (
           <Card key={result.metric}>
             <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">

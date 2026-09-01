@@ -65,10 +65,15 @@ export function Report() {
           heading: section.heading,
           verdict: trust.verdict,
           body:
-            trust.verdict === "blocked"
+            trust.verdict === "blocked" || trust.verdict === "unchecked"
               ? (trust.plainLanguage ?? "")
-              : `${trust.metricLabel} of ${formatExact(result.rows[0]?.value ?? 0, result.unit)}` +
-                (result.rows[0]?.delta === undefined
+              : // `?? 0` used to live in the template below. /api/query now
+                // returns no row rather than a zero when a slice has none, so
+                // the fallback would have printed a figure of nothing.
+                result.rows.length === 0
+                ? "No figure is available for this section."
+                : `${trust.metricLabel} of ${formatExact(result.rows[0].value, result.unit)}` +
+                (result.rows[0].delta === undefined
                   ? "."
                   : `, ${result.rows[0].delta >= 0 ? "up" : "down"} ${Math.abs(
                       result.rows[0].delta * 100,

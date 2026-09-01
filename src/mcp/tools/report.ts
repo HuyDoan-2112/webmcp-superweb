@@ -404,13 +404,19 @@ function draftReport(): ToolSpec {
         // or a zero. The dashboard renders Germany as $0 for this period, so a
         // zero here would be indistinguishable from a real figure to anything
         // reading the fields instead of the prose.
+        // Publishable needs a verdict AND a figure. A trusted section whose
+        // query returned nothing used to report publishable true with no
+        // figure, so an agent reading fields alone would carry an empty
+        // section into a deck as if it were a number.
+        const hasFigure = isPublishable(section.verdict) && figure !== null;
         sectionData.push({
           heading: section.heading,
           dimension,
           value: request.value,
           verdict: section.verdict,
-          publishable: isPublishable(section.verdict),
-          figure: isPublishable(section.verdict) ? figure?.value : undefined,
+          publishable: hasFigure,
+          figureAvailable: figure !== null,
+          figure: hasFigure ? figure.value : undefined,
           ...(check.value && isPublishable(section.verdict)
             ? rowFields(check.value.expectedRows, check.value.rejectedRows)
             : {}),
