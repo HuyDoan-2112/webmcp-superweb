@@ -122,9 +122,25 @@ export function noteRegistration(line: string): void {
   note(line);
 }
 
+const noteListeners = new Set<() => void>();
+
+/**
+ * Watch the registration log.
+ *
+ * The panel cannot rely on `toolchange` for this. That event fires on register
+ * and abort, so a page where registration never happens never fires it, and the
+ * panel stays on the render it made before the boot path ran. That is exactly
+ * the case this log exists to explain, so the log has to push.
+ */
+export function onRegistrationNote(listener: () => void): () => void {
+  noteListeners.add(listener);
+  return () => noteListeners.delete(listener);
+}
+
 function note(line: string): void {
   registrationLog.push(line);
   if (registrationLog.length > 40) registrationLog.shift();
+  for (const listener of noteListeners) listener();
 }
 
 function guard(spec: ToolSpec): ToolSpec {

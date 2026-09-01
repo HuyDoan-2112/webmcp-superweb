@@ -16,6 +16,7 @@
 import {
   getModelContext,
   listTools,
+  onRegistrationNote,
   onToolChange,
   registrationLog,
   whenSupported,
@@ -228,6 +229,11 @@ export function mountPanel(): void {
   const root = mount();
   void render(root);
   onToolChange(() => {
+    void render(root);
+  });
+  // Registration writes to the log whether or not any tool ends up registered,
+  // and a page that registers nothing fires no toolchange at all.
+  onRegistrationNote(() => {
     void render(root);
   });
 
