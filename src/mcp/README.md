@@ -40,10 +40,9 @@ Only when all three are no is the answer a new tool.
 These are not per-tool judgement calls. Changing one of them is changing the
 architecture, and needs saying out loud first.
 
-- **A tool never queries data itself.** It drives the UI through the store, and
-  the UI reads `/api/*`. A tool that composed SQL would be a badly-hosted MCP
-  server. `src/mcp/api.ts` is the only read seam and its header says where the
-  line sits.
+- **A tool never queries data itself**, per CLAUDE.md's rule. It drives the UI
+  through the store, and the UI reads `/api/*`. `src/mcp/api.ts` is the only
+  read seam and its header says where the line sits.
 - **A tool that moves the page goes through the store**, never around it, so the
   human and the agent share one state path. `src/store.ts` has a "Public
   surface" block listing which setter each tool drives.
@@ -51,10 +50,9 @@ architecture, and needs saying out loud first.
   from `shared/metrics.ts`, catalogue facets from an `/api/products` probe,
   promotion codes from `data/meta/promotions.json`. The agent cannot name a
   thing that does not exist, because the browser will not let it.
-- **Tools are registered only from modules imported here.** Never from fetched
-  content; runtime registration has a published attack surface.
-- **Sequencing happens through return values, not nesting.** A tool's response
-  is context the agent reads, and that is where the next step gets steered.
+- **Tools are registered only from modules imported here, and sequencing
+  happens through return values, not nesting**, both per CLAUDE.md's
+  Conventions.
 - **Registration follows page state and never identity.** Nothing here refuses
   anyone anything. The surface swap is not a security boundary; the server
   decides answer depth. See `CONTEXT.md` on surface versus audience.

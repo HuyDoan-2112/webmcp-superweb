@@ -19,9 +19,22 @@ export function asDimensionId(value: unknown): DimensionId | null {
 }
 
 /** Period argument, defaulted to the one the pipeline has actually evaluated. */
-export function asPeriod(value: unknown): string {
-  const v = String(value ?? "").trim();
-  return /^\d{4}-\d{2}$/.test(v) ? v : DEMO_PERIOD;
+/**
+ * A period, or null when the caller supplied one that is not a period.
+ *
+ * Defaulting is only correct when the argument is ABSENT. This used to rewrite
+ * anything malformed to the demo month, so "2023-1" and "2023-13" both came
+ * back as 2023-11 and the agent received credible figures for a month it had
+ * not asked about. A typo is not a request for November.
+ */
+export function asPeriod(value: unknown): string | null {
+  if (value === undefined || value === null || String(value).trim() === "")
+    return DEMO_PERIOD;
+  const v = String(value).trim();
+  const match = /^(\d{4})-(\d{2})$/.exec(v);
+  if (!match) return null;
+  const month = Number(match[2]);
+  return month >= 1 && month <= 12 ? v : null;
 }
 
 export function asText(value: unknown): string | undefined {
@@ -39,3 +52,26 @@ export const DIMENSION_ENUM = {
   type: "string",
   enum: [...DIMENSION_IDS],
 } as const;
+
+/**
+ * The axes a trust or report tool may be asked about.
+ *
+ * Narrower than DIMENSION_IDS on purpose. The dashboard store holds country,
+ * category and channel and nothing else, so a verdict about brand or currency
+ * could be returned while the page stayed where it was. The whole argument of
+ * this build is that the human and the agent are looking at one thing, and a
+ * tool that can answer about a slice the page cannot show breaks it quietly.
+ */
+export const STORE_DIMENSIONS = ["country", "category", "channel"] as const;
+
+export const STORE_DIMENSION_ENUM = {
+  type: "string",
+  enum: [...STORE_DIMENSIONS],
+} as const;
+
+export function asStoreDimension(value: unknown): DimensionId | null {
+  const v = String(value ?? "");
+  return (STORE_DIMENSIONS as readonly string[]).includes(v)
+    ? (v as DimensionId)
+    : null;
+}

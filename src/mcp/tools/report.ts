@@ -35,8 +35,14 @@ import {
 } from "../api";
 import { text, type ToolSpec } from "../adapter";
 import { isPublishable, rowFields, stamp, textWithData } from "../structured";
-import { asMetricId, asPeriod, asText, DIMENSION_ENUM, METRIC_ENUM } from "./args";
-import { asDimensionId } from "./args";
+import {
+  asMetricId,
+  asPeriod,
+  asStoreDimension,
+  asText,
+  METRIC_ENUM,
+  STORE_DIMENSION_ENUM,
+} from "./args";
 
 /**
  * Exactly the shape src/ui/report.tsx renders, imported from the store rather
@@ -88,21 +94,21 @@ async function defaultSections(period: string): Promise<SectionRequest[]> {
 }
 
 /**
- * The agent's own sentence, but never the agent's own number.
+ * The agent's own sentence, kept apart from the figures.
  *
- * `commentary` arrives from the model and nothing has verified it. A digit in
- * it is a figure this tool did not produce and cannot stand behind, and a
- * drafted section is the artifact a person copies, so a number that reached the
- * page through prose would be the exact failure this project exists to catch.
- * Prose without digits is opinion and passes through attributed.
+ * This used to reject any commentary containing a digit, which was both too
+ * strict and too weak: it threw away "strong quarter for Q4" and let "revenue
+ * was one hundred million" straight through. A regex cannot tell a number from
+ * a word, so it stopped trying.
+ *
+ * Commentary now never sits in the section body at all. The body is built from
+ * the pipeline's own values and this tool's own reading of them, and the
+ * agent's sentence travels beside it, attributed, where a reader can see who
+ * said it. A figure written in words is still only a claim the agent made, and
+ * labelling it as such is honest where filtering it was theatre.
  */
-function safeCommentary(commentary: string | undefined): {
-  kept: string | null;
-  dropped: boolean;
-} {
-  if (!commentary) return { kept: null, dropped: false };
-  if (/\d/.test(commentary)) return { kept: null, dropped: true };
-  return { kept: commentary, dropped: false };
+function safeCommentary(commentary: string | undefined): string | null {
+  return commentary?.trim() ? commentary.trim() : null;
 }
 
 /** The canonical figure, read back from /api/query. Null when it did not answer. */
@@ -111,7 +117,7 @@ async function figureFor(
   period: string,
   request: SectionRequest,
 ): Promise<{ sentence: string; value: number } | null> {
-  const dimension = asDimensionId(request.dimension) ?? undefined;
+  const dimension = asStoreDimension(request.dimension) ?? undefined;
   const result = await readQuery({
     metric,
     period,
@@ -210,11 +216,12 @@ function bodyFor(
       : `No figure is available: /api/query did not answer, so none was ` +
         `invented. This section covers ${period}.`);
 
-  const note = safeCommentary(request.commentary).kept;
+  // Attributed, and after the verified sentence, never woven into it.
+  const note = safeCommentary(request.commentary);
 
   return {
     heading: request.heading,
-    body: opening + gap + (note ? ` ${note}` : ""),
+    body: opening + gap + (note ? ` Agent's note, unverified: ${note}` : ""),
     verdict: check.verdict,
   };
 }
@@ -288,7 +295,7 @@ function draftReport(): ToolSpec {
                 description: "Section heading as a reader will see it.",
               },
               dimension: {
-                ...DIMENSION_ENUM,
+                ...STORE_DIMENSION_ENUM,
                 description:
                   "The axis this section is scoped to, usually country or channel.",
               },
@@ -300,10 +307,10 @@ function draftReport(): ToolSpec {
               commentary: {
                 type: "string",
                 description:
-                  "Your own sentence about this section. It must contain no " +
-                  "figures: this tool reads the number back from the site " +
-                  "itself and will not write one it did not verify. Dropped " +
-                  "entirely if the section turns out to be blocked.",
+                  "Your own sentence about this section. It is printed after " +
+                  "the verified figure, marked unverified and attributed to " +
+                  "you, never woven into it. Dropped entirely if the section " +
+                  "turns out to be blocked or unchecked.",
               },
             },
             required: ["heading"],
@@ -315,6 +322,14 @@ function draftReport(): ToolSpec {
     annotations: { readOnlyHint: false, untrustedContentHint: false },
     execute: async (args) => {
       const period = asPeriod(args.period);
+      if (period === null) {
+        return text(
+          `"${args.period}" is not a month, so nothing was read. Months are ` +
+            `YYYY-MM with a two digit month from 01 to 12. Nothing is ` +
+            `defaulted here: a typo silently becoming ${checkedPeriod()} would ` +
+            `hand you credible figures for a month you did not ask about.`,
+        );
+      }
       const metric = asMetricId(args.focus_metric) ?? "net_revenue";
       const requested = parseSections(args.sections);
       const sections =
@@ -352,7 +367,7 @@ function draftReport(): ToolSpec {
           );
           return false;
         }
-        if (asDimensionId(r.dimension) === null) {
+        if (asStoreDimension(r.dimension) === null) {
           malformed.push(`${r.heading}: "${r.dimension}" is not a dimension.`);
           return false;
         }
@@ -372,10 +387,9 @@ function draftReport(): ToolSpec {
         );
       }
 
-      const ignoredCommentary: string[] = [];
 
       for (const request of usable) {
-        const dimension = asDimensionId(request.dimension) ?? undefined;
+        const dimension = asStoreDimension(request.dimension) ?? undefined;
         const check = await readCheck({
           metric,
           period,
@@ -392,9 +406,6 @@ function draftReport(): ToolSpec {
           ? await figureFor(metric, period, request)
           : null;
 
-        if (safeCommentary(request.commentary).dropped) {
-          ignoredCommentary.push(request.heading);
-        }
 
         const section = bodyFor(request, check.value, period, figure);
         drafted.push(section);
@@ -468,13 +479,10 @@ function draftReport(): ToolSpec {
               `whole of ${period} and written under a heading naming one ` +
               `slice.\n\n`
             : "") +
-          (ignoredCommentary.length > 0
-            ? `Your commentary on ${ignoredCommentary.join(", ")} contained a ` +
-              `figure and was not written. Nothing verified it, and a number ` +
-              `that reaches the page through prose is exactly the number this ` +
-              `report exists to stop. Every figure above was read back from ` +
-              `the same endpoint the dashboard reads.\n\n`
-            : "") +
+          `Every figure above was read back from the same endpoint the ` +
+          `dashboard reads. Any sentence you supplied appears after it, marked ` +
+          `unverified and attributed to you, because this tool cannot stand ` +
+          `behind a claim it did not check.\n\n` +
           (blocked.length > 0
             ? `${blocked.length} section${blocked.length === 1 ? " is" : "s are"} ` +
               `BLOCKED and carr${blocked.length === 1 ? "ies" : "y"} no figure ` +
@@ -501,8 +509,6 @@ function draftReport(): ToolSpec {
           requested: drafted.length,
           sections: sectionData,
           refusedScope: malformed.length > 0 ? malformed : undefined,
-          droppedCommentary:
-            ignoredCommentary.length > 0 ? ignoredCommentary : undefined,
         },
       );
     },

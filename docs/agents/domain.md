@@ -18,30 +18,15 @@ repo grows into a genuine multi-package monorepo.
 
 ## File structure
 
-Single-context repo (most repos):
+This repo, as it stands and as it will stay:
 
 ```
 /
 ├── CONTEXT.md
 ├── docs/adr/
-│   ├── 0001-event-sourced-orders.md
-│   └── 0002-postgres-for-write-model.md
+│   ├── 0001-keep-the-etl-real.md
+│   └── 0002-trust-verdict-has-three-values.md
 └── src/
-```
-
-Multi-context repo (presence of `CONTEXT-MAP.md` at the root):
-
-```
-/
-├── CONTEXT-MAP.md
-├── docs/adr/                          ← system-wide decisions
-└── src/
-    ├── ordering/
-    │   ├── CONTEXT.md
-    │   └── docs/adr/                  ← context-specific decisions
-    └── billing/
-        ├── CONTEXT.md
-        └── docs/adr/
 ```
 
 ## Use the glossary's vocabulary

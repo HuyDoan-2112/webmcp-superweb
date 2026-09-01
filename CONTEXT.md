@@ -4,7 +4,8 @@ A dashboard for Kestrel Supply Co. that exposes WebMCP tools, so an agent
 operating the page can tell whether a number deserves to be written down.
 
 This file is a glossary. It records what our words mean, not how anything is
-built. Implementation lives in [docs/PLAN.md](docs/PLAN.md).
+built. Implementation lives in the code; the reasoning behind it is in
+[docs/PLAN.md](docs/PLAN.md) and [docs/adr/](docs/adr/).
 
 ## Language
 

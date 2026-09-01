@@ -32,7 +32,12 @@ import {
   supportsDimension,
 } from "@shared/metrics";
 import { getState, setMetric, setPeriod, setView } from "@/store";
-import { NO_QUERY_ENDPOINT, readCheck, readQuery } from "../api";
+import {
+  checkedPeriod,
+  NO_QUERY_ENDPOINT,
+  readCheck,
+  readQuery,
+} from "../api";
 import { text, type ToolSpec } from "../adapter";
 import { verdictLine } from "./trust";
 import { asDimensionId, asMetricId, asPeriod, METRIC_ENUM } from "./args";
@@ -216,6 +221,14 @@ function getMetricTool(): ToolSpec {
         );
       }
       const period = asPeriod(args.period);
+      if (period === null) {
+        return text(
+          `"${args.period}" is not a month, so nothing was read. Months are ` +
+            `YYYY-MM with a two digit month from 01 to 12. Nothing is ` +
+            `defaulted here: a typo silently becoming ${checkedPeriod()} would ` +
+            `hand you credible figures for a month you did not ask about.`,
+        );
+      }
       const definition = getMetric(metric);
 
       setMetric(metric);
@@ -312,6 +325,14 @@ function breakdownMetric(): ToolSpec {
       }
 
       const period = asPeriod(args.period);
+      if (period === null) {
+        return text(
+          `"${args.period}" is not a month, so nothing was read. Months are ` +
+            `YYYY-MM with a two digit month from 01 to 12. Nothing is ` +
+            `defaulted here: a typo silently becoming ${checkedPeriod()} would ` +
+            `hand you credible figures for a month you did not ask about.`,
+        );
+      }
       const limit = typeof args.limit === "number" ? Math.trunc(args.limit) : 10;
 
       setMetric(metric);

@@ -33,7 +33,14 @@ import {
 } from "../api";
 import { text, type ToolSpec } from "../adapter";
 import { isPublishable, rowFields, stamp, textWithData } from "../structured";
-import { asDimensionId, asMetricId, asPeriod, asText, DIMENSION_ENUM, METRIC_ENUM } from "./args";
+import {
+  asMetricId,
+  asPeriod,
+  asStoreDimension,
+  asText,
+  METRIC_ENUM,
+  STORE_DIMENSION_ENUM,
+} from "./args";
 
 /**
  * The check the pipeline recorded is `fx_rate_not_null` against `net_revenue`.
@@ -165,10 +172,11 @@ function checkDataTrust(): ToolSpec {
           description: `Month as YYYY-MM. Defaults to ${checkedPeriod()}.`,
         },
         dimension: {
-          ...DIMENSION_ENUM,
+          ...STORE_DIMENSION_ENUM,
           description:
-            "The axis the filter is on, such as country or channel. Omit for " +
-            "the whole period.",
+            "The axis the filter is on. Country, category or channel, which " +
+            "are the three the dashboard can actually show. Omit for the " +
+            "whole period.",
         },
         value: {
           type: "string",
@@ -192,7 +200,15 @@ function checkDataTrust(): ToolSpec {
           `"${args.metric}" is not a metric. Call list_metrics for the real list.`,
         );
       const period = asPeriod(args.period);
-      const dimension = asDimensionId(args.dimension) ?? undefined;
+      if (period === null) {
+        return text(
+          `"${args.period}" is not a month, so nothing was read. Months are ` +
+            `YYYY-MM with a two digit month from 01 to 12. Nothing is ` +
+            `defaulted here: a typo silently becoming ${checkedPeriod()} would ` +
+            `hand you credible figures for a month you did not ask about.`,
+        );
+      }
+      const dimension = asStoreDimension(args.dimension) ?? undefined;
       const value = asText(args.value);
 
       // A dimension the registry does not know would fall through to undefined
@@ -322,7 +338,7 @@ function explainDataIssue(): ToolSpec {
           description: `Month as YYYY-MM. Defaults to ${checkedPeriod()}.`,
         },
         dimension: {
-          ...DIMENSION_ENUM,
+          ...STORE_DIMENSION_ENUM,
           description: "The axis the filter is on. Omit for the whole period.",
         },
         value: { type: "string", description: "The filter value." },
@@ -335,7 +351,15 @@ function explainDataIssue(): ToolSpec {
     execute: async (args) => {
       const metric = asMetricId(args.metric) ?? "net_revenue";
       const period = asPeriod(args.period);
-      const dimension = asDimensionId(args.dimension) ?? undefined;
+      if (period === null) {
+        return text(
+          `"${args.period}" is not a month, so nothing was read. Months are ` +
+            `YYYY-MM with a two digit month from 01 to 12. Nothing is ` +
+            `defaulted here: a typo silently becoming ${checkedPeriod()} would ` +
+            `hand you credible figures for a month you did not ask about.`,
+        );
+      }
+      const dimension = asStoreDimension(args.dimension) ?? undefined;
       const value = asText(args.value);
       const check = await readCheck({ metric, period, dimension, value });
 

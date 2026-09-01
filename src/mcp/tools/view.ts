@@ -78,10 +78,14 @@ function filterDashboard(categories: string[]): ToolSpec {
 
       if (typeof args.period === "string" && args.period.trim() !== "") {
         const period = asPeriod(args.period);
+        if (period === null) {
+          return text(
+            `"${args.period}" is not a month, so the dashboard did not move. ` +
+              `Months are YYYY-MM with a two digit month from 01 to 12.`,
+          );
+        }
         setPeriod(period);
         moved.push(`period ${period}`);
-        if (period !== args.period)
-          moved.push(`(that is not a YYYY-MM month, so it fell back)`);
       }
 
       const metric = asMetricId(args.metric);

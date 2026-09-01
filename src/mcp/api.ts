@@ -81,12 +81,35 @@ const ARTIFACT_QUALITY = qualityChecks as unknown as QualityDoc;
 const ARTIFACT_LINEAGE = lineageDoc as unknown as Lineage;
 const ARTIFACT_RUNS = runsDoc as unknown as PipelineRun[];
 
+/**
+ * Read, or null when the endpoint could not answer.
+ *
+ * Null means unavailable, and only unavailable. A 4xx means the request was
+ * wrong and a 5xx means the server broke, and neither is a reason to fall back
+ * to a committed artifact: doing so answered a malformed question with stale
+ * data and called it success. Those rethrow so the caller reports the fault
+ * instead of hiding it behind a fallback.
+ */
 async function optional<T>(read: () => Promise<T>): Promise<T | null> {
   try {
     return await read();
-  } catch {
+  } catch (error) {
+    // ofetch attaches the response status. A 4xx means the request was wrong
+    // and a 5xx means the server broke; both are faults to report, not reasons
+    // to answer from a committed artifact. Only a request that never got a
+    // response, which is what unavailable actually means, falls back.
+    const status = statusOf(error);
+    if (status !== null && status >= 400) throw error;
     return null;
   }
+}
+
+function statusOf(error: unknown): number | null {
+  if (typeof error !== "object" || error === null) return null;
+  const e = error as { statusCode?: unknown; response?: { status?: unknown } };
+  if (typeof e.statusCode === "number") return e.statusCode;
+  if (typeof e.response?.status === "number") return e.response.status;
+  return null;
 }
 
 // ------------------------------------------------------------------- trust
@@ -131,7 +154,12 @@ function fromTrustReport(report: TrustReport, slice: TrustSlice): CheckRow {
       report.plainLanguage ??
       (report.verdict === "ok"
         ? "Every row that should be behind this figure was counted."
-        : "Some of the rows behind this figure were never counted."),
+        : // An unchecked slice must not borrow the language of a failed one.
+          // "Some of the rows were never counted" is a claim about rows, and
+          // for a slice nobody evaluated there is no such claim to make.
+          report.verdict === "unchecked"
+          ? "No data quality check covers this slice, so there is no evidence either way."
+          : "Some of the rows behind this figure were never counted."),
   };
 }
 

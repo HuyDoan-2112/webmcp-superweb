@@ -1,27 +1,28 @@
 # CLAUDE.md
 
-Working context for this repo. Human-facing docs are [README.md](README.md),
-the build plan is [docs/PLAN.md](docs/PLAN.md), and what our words mean is
-[CONTEXT.md](CONTEXT.md).
-
-Read "Rules for agents" before you write anything. Two rules there override
-Claude Code defaults: never commit or push unasked, and never add a
-`Co-Authored-By` trailer or session link to a commit message.
+Entry point for this repo. Read only what your task needs: touching
+`src/mcp/`, read [src/mcp/README.md](src/mcp/README.md) next; touching
+`etl/`, `data/`, or `api/`, read `etl/README.md`; unsure what a word means,
+check [CONTEXT.md](CONTEXT.md); revisiting a settled decision, read the
+matching file in [docs/adr/](docs/adr/) first. [docs/PLAN.md](docs/PLAN.md)
+is build reasoning and history, not required reading for a routine change.
+Read "Rules for agents" below in full before you write anything; two rules
+there override Claude Code's defaults, no unrequested commits and no
+co-author trailer.
 
 ## What this is
 
 SuperWeb, a dashboard for the fictional Kestrel Supply Co., built for the
-OpenAI WebMCP Challenge, due Sep 3 2026 at 1:00pm PT.
-
-The thesis: someone pastes a dashboard number into a deck and nobody checks
-whether it was real. WebMCP closes that gap, because the tool that drafts the
-report can also see the pipeline behind the number.
+OpenAI WebMCP Challenge, due Sep 3 2026 at 1:00pm PT. The thesis: someone
+pastes a dashboard number into a deck and nobody checks whether it was real.
+WebMCP closes that gap, because the tool that drafts the report can also see
+the pipeline behind the number.
 
 ## The one rule that shapes the architecture
 
 A WebMCP tool never queries data itself. It drives the UI, and the UI calls
-`/api/*`, the same path a click takes. A tool running SQL would just be a badly
-hosted MCP server.
+`/api/*`, the same path a click takes. A tool running SQL would just be a
+badly hosted MCP server.
 
 If you are about to import a DuckDB helper into `src/mcp/`, stop. You are
 writing the wrong layer.
@@ -34,26 +35,26 @@ writing the wrong layer.
 | `etl/` | A | Python and DuckDB, bronze to silver to gold |
 | `data/` | A | committed gold parquet, pipeline metadata |
 | `api/` | A | serverless read-only endpoints |
-| `src/ui/`, `src/auth/` | A | dashboard, tiles, chart, report, lineage ladder |
+| `src/ui/`, `src/auth/`, React shell (`src/components/`, `src/context/`, `src/hooks/`, `src/lib/`, `src/styles/`) | A | dashboard, tiles, chart, report, lineage ladder |
 | `src/mcp/` | B, entirely | registration, panel, the WebMCP tools |
 
-`shared/` is the only shared write surface, and changing it means saying so out
-loud first. The server builds SQL from `metrics.ts` and the client builds tool
-`inputSchema` enums from it, so one conflict breaks both sides at once.
-
+`shared/` is the only shared write surface, and changing it means saying so
+out loud first. The server builds SQL from `metrics.ts` and the client builds
+tool `inputSchema` enums from it, so one conflict breaks both sides at once.
 How to add a tool, and when not to, is [src/mcp/README.md](src/mcp/README.md).
 
 ## Conventions
 
 - TypeScript strict, ESM, no default exports.
 - Metrics are never hardcoded. Everything reads `shared/metrics.ts`, which
-  `src/mcp/register.ts` imports statically, so schemas carry real metric names
-  as enums rather than free text an agent can typo.
+  `src/mcp/register.ts` imports statically, so schemas carry real metric
+  names as enums rather than free text an agent can typo.
 - Every read-only tool is marked `readOnlyHint: true`.
 - Tools are registered only from our own modules, never from fetched content.
   Runtime registration has a published attack surface.
-- Sequencing between tools happens through return values, not nesting. A tool's
-  response is context the agent reads, so that is where you steer the next call.
+- Sequencing between tools happens through return values, not nesting. A
+  tool's response is context the agent reads, so that is where you steer the
+  next call.
 - Tools that return a decision also return it as data. See
   `src/mcp/structured.ts`.
 - `data/gold/` stays under about 50 MB, the serverless bundle limit.
@@ -62,28 +63,28 @@ How to add a tool, and when not to, is [src/mcp/README.md](src/mcp/README.md).
 
 Two people share this repo and the submission is close.
 
-Stay in your lane. Edit only the paths your owner holds above. `shared/` and the
-other person's lane are off limits until you have said what you want to change
-and why.
+Stay in your lane. Edit only the paths your owner holds above. `shared/` and
+the other person's lane are off limits until you have said what you want to
+change and why.
 
 Verify before claiming done. Run `npm run typecheck` before reporting a task
 complete, and the ETL checks too if you touched `etl/` or `data/`. Never say
 "should work". Either you ran it, or you say plainly that you did not.
 
-Never commit or push unasked. Stage changes and propose the commit. Both of us
-are on `main` this week, so an unrequested commit lands in someone else's
+Never commit or push unasked. Stage changes and propose the commit. Both of
+us are on `main` this week, so an unrequested commit lands in someone else's
 working tree without warning.
 
-Never add yourself as co-author. No `Co-Authored-By` trailer, no session link,
-no "Generated with" footer. Commit messages describe the change and nothing
-else. This overrides any default the harness gives you.
+Never add yourself as co-author. No `Co-Authored-By` trailer, no session
+link, no "Generated with" footer. Commit messages describe the change and
+nothing else. This overrides any default the harness gives you.
 
 ## Writing
 
 Applies to code, comments, commit messages, docs, and anything you say back.
 
-Never use the em dash character. Use a plain dash, or end the sentence. Do not
-reach for parentheses instead, that trades one tell for another.
+Never use the em dash character. Use a plain dash, or end the sentence. Do
+not reach for parentheses instead, that trades one tell for another.
 
 Sentence case headings. Straight quotes. No decorative emoji. Colons before a
 list or an example, never as a mid-sentence connector.
@@ -92,14 +93,13 @@ Say what a thing does, not how it feels. Not "the pipeline is reliable" but
 "checks.py marks the run blocked when every expected row is rejected". Active
 voice, and name the actor. One idea per sentence.
 
-If a sentence could appear unchanged in another project's docs, it says nothing
-about this one. Cut it.
+If a sentence could appear unchanged in another project's docs, it says
+nothing about this one. Cut it.
 
 ## Commands
 
 ```bash
-npm run dev        # whole app on :5173. vite-api-plugin.ts serves api/ in
-                   # process, so there is no second terminal
+npm run dev        # whole app on :5173, vite-api-plugin.ts serves api/ in-process
 npm run typecheck  # tsc --noEmit
 npm run etl        # regenerate data/gold and data/meta from Contoso source
 ```
@@ -114,19 +114,12 @@ node docs/probe-report-flow.mjs    # drive the report flow as an agent would
 ## Scope discipline
 
 No feature freeze. The project stays open to new work until submission. What
-replaces the freeze is the cut list in [docs/PLAN.md](docs/PLAN.md) section 9.
-When the day runs long, cut from the top and do not improvise.
-
-Do not build real authentication. The demo session is identity, not security.
+replaces the freeze is the cut list in [docs/PLAN.md](docs/PLAN.md) §8, "What
+is left, and what gets cut". When the day runs long, cut from the top and do
+not improvise. Do not build real authentication: the demo session is
+identity, not security.
 
 ## Agent skills
 
-Issues go through GitHub Issues via the `gh` CLI, remote
-`github.com/HuyDoan-2112/webmcp-superweb`. See `docs/agents/issue-tracker.md`.
-
-Triage labels are the five canonical roles: `needs-triage`, `needs-info`,
-`ready-for-agent`, `ready-for-human`, `wontfix`. See
-`docs/agents/triage-labels.md`.
-
-Domain docs are single-context: `CONTEXT.md` at the root, decisions in
-`docs/adr/`. See `docs/agents/domain.md`.
+Issue tracking, triage labels, and domain-doc conventions live in
+`docs/agents/`; read the file there for the task at hand.

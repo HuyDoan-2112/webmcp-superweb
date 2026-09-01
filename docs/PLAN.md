@@ -18,13 +18,25 @@ rejected, and where the build stands. It does not restate what the code says.
 Counts, file layouts and endpoint lists are read from the repository, because a
 document that repeats them is a staleness bug waiting to be written.
 
+Most of what follows is why a decision was made, not what to do next; CLAUDE.md
+holds the binding rules, `src/mcp/README.md` holds the tool recipe, and
+`docs/adr/` holds the decisions that outlived the day they were made. Read this
+file for that reasoning, not before a routine change.
+
+The section numbers below are load-bearing: `api/_lib/session.ts`,
+`src/main.tsx`, `src/mcp/tools/report.ts`, and `src/mcp/README.md` cite
+specific sections by number in code comments this document cannot touch, so
+the numbering stays fixed even where content moves. That is also why §10 does
+not exist: a section was cut after those comments were written, and
+renumbering everything after it would break every one of those references.
+
 ---
 
 ## 0. Where the build stands
 
-Written 2026-08-29. This section is the first thing to update when something
-changes, because a plan that reads as a plan after the application exists is
-worse than no plan.
+Written 2026-08-29, corrected 2026-08-31. This section is the first thing to
+update when something changes, because a plan that reads as a plan after the
+application exists is worse than no plan.
 
 **Done.** Gate 0, both checks. The shared contract in `shared/`. The ETL, bronze
 to silver to gold, with the gold parquet and the run metadata committed. The
@@ -33,7 +45,10 @@ endpoints, the public catalogue and the dashboard alike. The tool layer in
 `src/mcp/`, imperative tools plus the declarative search form, with the
 visibility panel and the context registration rules. The origin trial token in
 `index.html`, bound to `https://webmcp-superweb.vercel.app`, expiring
-2026-11-17. The working tree is clean.
+2026-11-17. The working tree is clean. **Deployed.** The origin above serves
+the built app, and `/api/query` and `/api/trust` return real numbers off the
+committed gold parquet, confirmed 2026-08-31. Vercel does bundle the DuckDB
+native binary into the serverless function without issue.
 
 **Not done.** These are what is left before the deadline, in the order they will
 hurt.
@@ -42,17 +57,11 @@ hurt.
   driven from the console. §8's gate says the agent answers an unrehearsed
   question, and console calls do not satisfy that wording. This is the one that
   decides whether the demo exists.
-- **Nothing is deployed.** Whether Vercel bundles the DuckDB native binary into
-  a serverless function is untested, and it is the kind of thing that fails for
-  the first time on the day. Until it is up, the tool layer's readers fall back
-  to the committed artifacts under `data/meta/` and say which source answered;
-  the owner note at the top of `src/mcp/api.ts` says to delete the fallback once
-  the deployment is real.
 - **`build_deck` returns a slide outline, not a `.pptx`.** PptxGenJS is not
-  installed. The fallback in §9 was always to render in the page, and that is
-  what it does.
+  installed, confirmed 2026-08-31. The fallback in §9 was always to render in
+  the page, and that is what it does.
 - **The report author is hardcoded.** *"Prepared by Maya Okonkwo"* is text in
-  the report rather than a read off the session. See §6.
+  `src/ui/report.tsx`, not a read off the session, confirmed 2026-08-31. See §6.
 
 ---
 
@@ -84,7 +93,7 @@ BROWSER · what the user sees
      The agent (ChatGPT / Chrome)
 ```
 
-**A tool never queries data itself.** It drives the UI, and the UI calls the API - the same path a click takes. A tool running SQL directly would just be a badly-hosted MCP server, and WebMCP's purpose is reinforcing the frontend experience, not replacing the backend.
+**A tool never queries data itself.** It drives the UI, and the UI calls the API, the same path a click takes. CLAUDE.md states the rule; the reasoning is that WebMCP's purpose is reinforcing the frontend experience, not replacing the backend.
 
 As built, the line has two halves and `src/mcp/api.ts` says so at the top. A tool that *moves the page* goes through the store, never around it, so the human and the agent share one state path. A tool *answering a question* may read the same `/api/*` endpoint the page read, which the trust gate in §5 requires, because the dashboard cannot render a verdict for a slice nobody asked for. Neither half touches DuckDB or composes SQL, and `src/mcp/` imports no database helper. That is the thing the rule was written to prevent.
 
@@ -113,7 +122,7 @@ same state, and `src/mcp/` was not touched at all.
 
 1. **`shared/` is the whole point.** The metric registry must be importable by the server (to build SQL) and the client (to shape tool `inputSchema` enums). Anywhere else and you maintain it twice, and it drifts by Sunday.
 
-2. **Ownership maps to folders.** Person A owns `etl/`, `data/`, `api/`, `src/ui/`, `src/auth/` and the React shell: `src/components/`, `src/context/`, `src/hooks/`, `src/lib/`, `src/styles/`. Person B owns `src/mcp/` entirely. The only shared write surface is `shared/`, written together Friday morning and then treated as frozen - if it must change, say so out loud first.
+2. **Ownership maps to folders**, exactly as CLAUDE.md's table states. The only shared write surface is `shared/`, written together Friday morning and then treated as frozen - if it must change, say so out loud first.
 
 3. **Watch the serverless bundle limit.** Committed parquet gets pulled into the function bundle, which is capped. Keep `data/gold/` under ~50 MB. If it grows, host the parquet as a static asset and read it over HTTP instead of bundling it.
 
@@ -244,9 +253,8 @@ return { content: [{ type: "text", text:
 }]};
 ```
 
-Register only from your own modules, never from fetched content - runtime
-registration has a published attack surface, and one sentence about it in the
-writeup reads as real engineering maturity.
+Register only from your own modules, per CLAUDE.md's Conventions - one
+sentence about it in the writeup reads as real engineering maturity.
 
 ### The metric registry
 
