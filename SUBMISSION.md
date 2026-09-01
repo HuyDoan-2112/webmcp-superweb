@@ -95,7 +95,7 @@ Every number here came from the committed data, not from prose.
 | Online lines missing | 4,788 of 18,831, 25.4 per cent | same |
 | Public tools registered | 12, rising to 13 on a camera | `docs/probe-preview.mjs` |
 | A fabricated $999,999 reaching the page | never | `docs/probe-report-flow.mjs` |
-| Deterministic scenarios passing | 19 of 19 | `npm run eval` |
+| Deterministic scenarios passing | 20 of 20, against the live deployment | `npm run eval` |
 
 The exchange rate gap is injected on purpose, by two lines in
 `etl/sql/01_bronze.sql`. Everything downstream of those lines is real: the
@@ -108,7 +108,8 @@ rejected joins, the checks, the counts, the lineage, and the refusal.
 npm run verify          # typecheck and build
 npm run dev             # then, in another shell:
 npm run verify:webmcp   # three real-Chrome probes
-npm run eval            # 19 deterministic scenarios, pass or fail
+npm run verify:origin-trial  # the production token, with the flag off
+npm run eval            # 20 deterministic scenarios, pass or fail
 ```
 
 The probes drive the app through `document.modelContext` in real Chrome and
@@ -117,11 +118,12 @@ rather than hedged.
 
 `npm run eval` is the deterministic half of Chrome's suggested WebMCP
 evaluation. Every scenario calls a tool with fixed arguments and asserts on
-what came back, so it measures what the tools do:
+what came back, so it measures what the tools do. The run below is against
+https://webmcp-superweb.vercel.app, not a local server:
 
 | Group | Scenarios | Passing |
 | --- | --- | --- |
-| Contextual registration and unregistration | 4 | 4 |
+| Contextual registration and unregistration | 5 | 5 |
 | The human approval boundary | 4 | 4 |
 | Verdicts matching what the pipeline recorded | 3 | 3 |
 | Refusing malformed or invented input | 3 | 3 |

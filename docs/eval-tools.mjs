@@ -80,7 +80,22 @@ const pageText = () => evaluate(`document.body.innerText`);
 const has = n => evaluate(`document.modelContext.getTools().then(ts => ts.some(t => t.name === ${JSON.stringify(n)}))`);
 
 await send("Runtime.enable");
-await sleep(3000);
+
+// Wait for a tool rather than for a clock. The public group builds its category
+// enum from a live /api/products call, and against production that request is a
+// cold start on the DuckDB function. A fixed sleep passed locally and reported
+// four phantom failures against the deployed origin, which is a probe measuring
+// its own latency rather than the app.
+async function waitFor(name, ms = 30000) {
+  const deadline = Date.now() + ms;
+  while (Date.now() < deadline) {
+    if (await has(name)) return true;
+    await sleep(250);
+  }
+  return false;
+}
+
+await sleep(1500);
 
 const results = [];
 async function check(scenario, expected, run) {
@@ -101,16 +116,18 @@ console.log("-- public surface --------------------------------------------");
 await check("A camera with no product open offers no recipe", "tool absent", async () =>
   (await has("get_preview_recipe")) === false ? "PASS" : "the recipe tool was registered with nothing open");
 
+await check("The public tools register on load", "search_products present", async () =>
+  (await waitFor("search_products")) ? "PASS" : "the public group never registered");
+
 const search = String(await call("search_products", { query: "camera", limit: 3 }));
 const code = /\b(\d{7})\b/.exec(search)?.[1];
 await check("search_products finds a photographed camera", "a 7 digit code", async () =>
   code ? "PASS" : `no code in: ${search.slice(0, 120)}`);
 
 await call("get_product", { product: code });
-await sleep(1200);
 
 await check("Opening a camera registers the recipe", "tool present", async () =>
-  (await has("get_preview_recipe")) ? "PASS" : "the recipe tool did not appear");
+  (await waitFor("get_preview_recipe")) ? "PASS" : "the recipe tool did not appear");
 
 await check("An invented look is refused, not improvised", "refusal naming the real looks", async () => {
   const r = String(await call("get_preview_recipe", { look: "Cyberpunk neon" }));
@@ -144,10 +161,15 @@ await evaluate(`(async () => {
   item.click();
   return true;
 })()`);
-await sleep(2500);
 
-await check("Signing in swaps the catalogue tools away", "get_product gone", async () =>
-  (await has("get_product")) === false ? "PASS" : "a catalogue tool survived the swap");
+await check("Signing in swaps the catalogue tools away", "get_product gone", async () => {
+  const deadline = Date.now() + 30000;
+  while (Date.now() < deadline) {
+    if ((await has("get_product")) === false && (await has("check_data_trust"))) return "PASS";
+    await sleep(250);
+  }
+  return "the catalogue tools survived the swap";
+});
 
 await check("A malformed month is refused", "no dashboard move", async () => {
   const r = String(await call("get_metric", { metric: "net_revenue", period: "2023-13" }));
@@ -183,7 +205,7 @@ console.log("");
 console.log("-- the report ------------------------------------------------");
 
 await call("start_report", {});
-await sleep(1200);
+await waitFor("draft_report");
 await call("draft_report", {
   metric: "net_revenue",
   period: "2023-11",

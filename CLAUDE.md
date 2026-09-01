@@ -111,7 +111,7 @@ Four browser scripts, all needing Chrome with WebMCP on:
 node docs/probe-modelcontext.mjs   # remeasure the browser API
 node docs/probe-report-flow.mjs    # drive the report flow as an agent would
 node docs/probe-preview.mjs        # open a camera and read the preview recipe
-npm run eval                       # 19 deterministic scenarios, pass or fail
+npm run eval                       # 20 deterministic scenarios, pass or fail
 ```
 
 ## Scope discipline
