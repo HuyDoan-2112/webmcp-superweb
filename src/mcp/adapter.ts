@@ -108,6 +108,15 @@ function describeFailure(name: string, cause: unknown): string {
  */
 export const registrationLog: string[] = [];
 
+/**
+ * How long a group's build may take before it is treated as failed.
+ *
+ * Generous on purpose: the public group's probe is a real request and a cold
+ * serverless start is slow. The deployed page registers all twelve tools in
+ * 848 ms, so this is an outer bound on a hang, not a performance budget.
+ */
+const BUILD_DEADLINE_MS = 8_000;
+
 function note(line: string): void {
   registrationLog.push(line);
   if (registrationLog.length > 40) registrationLog.shift();
@@ -164,12 +173,33 @@ export class ToolGroup {
     const controller = new AbortController();
     this.controller = controller;
 
+    // Logged before the await, not after. build() fetches, and a fetch that
+    // never settles leaves open() parked forever with isOpen already true, so
+    // the reconciler never retries and every later note is unreachable. Without
+    // this line that state is indistinguishable from open() never being called.
+    note(`group "${this.id}": opening, building tools`);
+
     // A build that throws must not take the registration with it. The public
     // group probes /api/products for its facet enums, and a probe that fails
     // should cost the agent real enums, not every tool on the page.
     let specs: ToolSpec[];
     try {
-      specs = await this.build();
+      // A deadline, because the shared HTTP client sets none. open() already
+      // promises that a failed probe costs real enums rather than every tool
+      // on the page, and a request that never settles broke that promise the
+      // worst way: parked here with isOpen already true, so the reconciler
+      // never retried and nothing reached the log. A rejection lands in the
+      // catch below, which clears the controller and makes the next store
+      // change try again.
+      specs = await Promise.race([
+        this.build(),
+        new Promise<never>((_, reject) =>
+          setTimeout(
+            () => reject(new Error(`build did not settle within ${BUILD_DEADLINE_MS} ms`)),
+            BUILD_DEADLINE_MS,
+          ),
+        ),
+      ]);
     } catch (error) {
       console.error(`[superweb] building tool group "${this.id}" failed`, error);
       note(
