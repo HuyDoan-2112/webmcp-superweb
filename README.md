@@ -9,6 +9,7 @@ through a parallel API or a hosted MCP server.
 |---|---|
 | Live | [webmcp-superweb.vercel.app](https://webmcp-superweb.vercel.app) |
 | Demo video | _to be added_ |
+| Agent brief | [llms.txt](https://webmcp-superweb.vercel.app/llms.txt), the site described for an agent arriving without WebMCP |
 | Licence | MIT, see [LICENSE](LICENSE) |
 | Built for | the [OpenAI WebMCP Challenge](https://openai.com/webmcp-challenge/). First commit Aug 27 2026, no prior work |
 

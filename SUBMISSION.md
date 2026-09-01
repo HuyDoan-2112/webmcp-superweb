@@ -4,6 +4,7 @@ The dashboard that knows when not to answer.
 
 Live: https://webmcp-superweb.vercel.app
 Source: https://github.com/HuyDoan-2112/webmcp-superweb
+Agent brief: https://webmcp-superweb.vercel.app/llms.txt
 Licence: MIT
 
 ## The problem

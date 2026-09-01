@@ -1,0 +1,77 @@
+# SuperWeb
+
+> A WebMCP demonstration on the fictional Kestrel Supply Co. The page registers
+> its own tools, so an agent operates the real product through the same code
+> path a click takes. This file describes the site for an agent reading it from
+> outside. An agent already on the page does not need it: the tool list arrives
+> through `navigator.modelContext`.
+
+The application is a client-rendered single page at
+https://webmcp-superweb.vercel.app. Fetching that URL returns an empty shell,
+because the catalogue, the dashboard and the tool surface are all built in the
+browser. There are no sub-pages to crawl and no public JSON API to read: the
+endpoints under `/api/` are read-only and exist for the page, not for callers.
+
+## Two surfaces, one origin
+
+The **public surface** is a trade catalogue of 28 photographed products. Its
+tools search and filter the real catalogue, open and compare products, manage a
+cart and wishlist, file trade enquiries, switch between five locales, and read
+Kestrel's authored profile for a product family. One of them is registered by
+the browser from HTML rather than by JavaScript: the search form carries
+`toolname` and `tooldescription`, so Chrome synthesises its schema from the
+markup.
+
+The **internal surface** is a dashboard over a DuckDB pipeline. Its tools answer
+metric questions, break any metric along any dimension, check whether a given
+slice is trustworthy, draft a multi-section report, and trace a number back to
+the system it came from.
+
+The tool set follows page state, never identity. Report tools appear when the
+report opens, diagnostic tools appear once a check has failed, and a product's
+preview recipe appears only while that product is open. Because that set is
+built at registration time from live data, the names and the schema enums live
+in the code rather than in this file. `src/mcp/README.md` is the current list.
+
+## Signing in is not a tool
+
+The internal surface appears only after a person signs in on the page, and no
+registered tool can sign in. An agent that could call it would grant itself the
+second tool set, which would make the swap something the page does to itself
+rather than something a person does. An agent that reads this file and then
+finds the smaller tool set is looking at the signed-out catalogue, and that is
+the whole reason.
+
+The demo session is identity, not security. The cookie decides how deep an
+answer goes, never whether a question may be asked, so a missing session costs
+detail rather than access.
+
+## What the site refuses to do
+
+November 2023 is missing a month of euro exchange rates, so 7,831 of 31,084
+order lines fell out of the pipeline. Four countries lose every line. The Online
+channel keeps a figure that looks ordinary and is roughly a quarter short. The
+report tools read the pipeline's own quality checks and refuse a section rather
+than publish a figure that survived a failed check, and a blocked section omits
+the figure key entirely rather than sending zero. Exporting a drafted report
+needs a person to press Approve on the page.
+
+## Documentation
+
+- [README](https://github.com/HuyDoan-2112/webmcp-superweb/blob/main/README.md): what the application is, the full tool tables, and what the probes found in Chrome's implementation
+- [Tool reference and recipe](https://github.com/HuyDoan-2112/webmcp-superweb/blob/main/src/mcp/README.md): how a tool is written here, the group gates, and the annotation rules
+- [CONTEXT.md](https://github.com/HuyDoan-2112/webmcp-superweb/blob/main/CONTEXT.md): the glossary, what each word means in this project and which near-synonyms it beats
+- [SUBMISSION.md](https://github.com/HuyDoan-2112/webmcp-superweb/blob/main/SUBMISSION.md): the challenge write-up, the problem and why it needs WebMCP rather than a hosted MCP server
+- [ETL and data](https://github.com/HuyDoan-2112/webmcp-superweb/blob/main/etl/README.md): the bronze to silver to gold pipeline and the quality checks the trust tools read
+
+## Decisions
+
+- [ADR 0001](https://github.com/HuyDoan-2112/webmcp-superweb/blob/main/docs/adr/0001-keep-the-etl-real.md): keep the ETL real rather than replacing it with fixtures
+- [ADR 0002](https://github.com/HuyDoan-2112/webmcp-superweb/blob/main/docs/adr/0002-trust-verdict-has-three-values.md): a trust verdict has three values and ranges over metric, period and filter
+- [ADR 0003](https://github.com/HuyDoan-2112/webmcp-superweb/blob/main/docs/adr/0003-the-fx-gap-is-planted.md): the FX gap is planted in bronze, not found and not faked
+- [ADR 0004](https://github.com/HuyDoan-2112/webmcp-superweb/blob/main/docs/adr/0004-the-declarative-tool-answers-with-a-count.md): the declarative tool answers with a count, not with products
+
+## Elsewhere
+
+- [Source](https://github.com/HuyDoan-2112/webmcp-superweb): MIT licenced
+- [WebMCP explainer](https://github.com/webmachinelearning/webmcp): the specification this is built against
