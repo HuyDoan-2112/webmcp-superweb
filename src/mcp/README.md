@@ -60,11 +60,13 @@ architecture, and needs saying out loud first.
 ## Per-tool judgement
 
 - **Which group.** `public` while the catalogue is on screen, `internal` once
-  someone has signed in, `report` while the report is open, `diagnostics` once a
-  check has failed. A new group needs a real page condition that is sometimes
-  absent: promotions did **not** get one, because they are a committed file and
-  are therefore always there, so a gate on "a promotion exists" would have been
-  theatre.
+  someone has signed in, `report` while the report is open, `preview` while a
+  product Kestrel wrote a profile for is open, `diagnostics` once a check has
+  failed. A new group needs a real page condition that is sometimes absent:
+  promotions did **not** get one, because they are a committed file and are
+  therefore always there, so a gate on "a promotion exists" would have been
+  theatre. `preview` earned one because most of the catalogue has no profile,
+  so the tool is genuinely absent on a kettle.
 - **`readOnlyHint`.** The MCP definition is "does not modify its environment",
   and the page is the environment. A tool that calls a store setter is `false`
   even when the change is trivially reversible.

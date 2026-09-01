@@ -7,7 +7,8 @@
 //      in-app browser is Chromium 148 and has no modelContext at all; the page
 //      must still work there, with the panel saying so.
 //   2. Group lifecycle. Tools are registered in named groups (public,
-//      internal, report, diagnostics) and each group owns one AbortController.
+//      internal, report, preview, diagnostics) and each group owns one
+//      AbortController.
 //      Aborting it unregisters every tool in the group. There is no
 //      unregisterTool in Chrome 152.
 //   3. A safe execute wrapper. A tool that throws inside the agent's turn is a

@@ -4,12 +4,14 @@
 // Nothing here refuses anyone anything; the surface changes with what is on the
 // screen, which is the pattern the spec already uses for login and logout.
 //
-// Four groups, each with its own lifetime:
+// Five groups, each with its own lifetime:
 //
 //   public       the catalogue and promotions tools, while the catalogue is
 //                the page
 //   internal     the dashboard tools, once someone has signed in
 //   report       draft_report and build_deck, once the report is open
+//   preview      get_preview_recipe, while a product Kestrel has written a
+//                profile for is open on the catalogue
 //   diagnostics  explain_data_issue and trace_lineage, once a check has failed
 //
 // The public set is swapped out rather than kept, because its tools drive the
@@ -34,6 +36,7 @@ import { mountPanel } from "./panel";
 import { publicTools } from "./tools/catalog";
 import { customerTools } from "./tools/customer";
 import { enquiryTools } from "./tools/enquiries";
+import { previewTools } from "./tools/preview";
 import { promotionTools } from "./tools/promotions";
 import { readTools } from "./tools/read";
 import { trustTools } from "./tools/trust";
@@ -54,6 +57,10 @@ const groups = {
     ...reportEntryTools(),
     ...enquiryTools(),
   ]),
+  // Its own group rather than part of public, because it opens and closes on
+  // the open product rather than on the surface. A shopper moving from a
+  // camera to a kettle should watch one tool go away.
+  preview: new ToolGroup("preview", previewTools),
   report: new ToolGroup("report", reportTools),
   diagnostics: new ToolGroup("diagnostics", diagnosticTools),
 };
@@ -65,6 +72,9 @@ const groups = {
  */
 let queue: Promise<void> = Promise.resolve();
 
+/** The product the preview group was opened for. See the note in reconcile. */
+let lastPreviewKey: number | null = null;
+
 function reconcile(): void {
   queue = queue
     .then(async () => {
@@ -73,6 +83,16 @@ function reconcile(): void {
 
       await sync(groups.public, !internal);
       await sync(groups.internal, internal);
+      // Keyed on the product rather than only on whether one is open. The
+      // look enum is built from the open product when the group opens, so
+      // moving from a camcorder to an SLR without this would leave the
+      // camcorder's list of looks registered under the SLR's page.
+      const previewKey = internal ? null : s.selectedProductKey;
+      if (previewKey !== lastPreviewKey) {
+        groups.preview.close();
+        lastPreviewKey = previewKey;
+      }
+      await sync(groups.preview, previewKey !== null);
       await sync(groups.report, internal && s.reportOpen);
       await sync(groups.diagnostics, internal && s.hasFailedCheck);
     })
