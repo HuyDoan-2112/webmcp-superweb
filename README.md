@@ -228,6 +228,8 @@ explainer, and every claim below came from them.
 ```bash
 node docs/probe-modelcontext.mjs   # the browser API surface
 node docs/probe-report-flow.mjs    # the report flow, driven as an agent
+node docs/probe-preview.mjs        # the preview recipe appearing and going away
+npm run eval                      # 19 deterministic scenarios, pass or fail
 ```
 
 What they found. Unregistering means aborting the `AbortSignal` passed to

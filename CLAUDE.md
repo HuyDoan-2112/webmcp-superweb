@@ -101,14 +101,17 @@ nothing about this one. Cut it.
 ```bash
 npm run dev        # whole app on :5173, vite-api-plugin.ts serves api/ in-process
 npm run typecheck  # tsc --noEmit
+npm run verify     # typecheck and build, the one command before submitting
 npm run etl        # regenerate data/gold and data/meta from Contoso source
 ```
 
-Two probes, both needing Chrome with WebMCP on:
+Four browser scripts, all needing Chrome with WebMCP on:
 
 ```bash
 node docs/probe-modelcontext.mjs   # remeasure the browser API
 node docs/probe-report-flow.mjs    # drive the report flow as an agent would
+node docs/probe-preview.mjs        # open a camera and read the preview recipe
+npm run eval                       # 19 deterministic scenarios, pass or fail
 ```
 
 ## Scope discipline

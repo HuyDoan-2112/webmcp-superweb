@@ -10,6 +10,10 @@
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
+    "verify": "npm run build",
+    "verify:webmcp": "node docs/probe-modelcontext.mjs && node docs/probe-report-flow.mjs && node docs/probe-preview.mjs",
+    "eval": "node docs/eval-tools.mjs",
+    "verify:origin-trial": "node docs/probe-modelcontext.mjs --url=https://webmcp-superweb.vercel.app/ --flag=off",
     "etl": "python etl/run.py"
   },
   "dependencies": {
