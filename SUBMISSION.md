@@ -1,145 +1,189 @@
 # SuperWeb
 
-The dashboard that knows when not to answer.
+SuperWeb lets an agent operate a trade catalogue and its revenue dashboard
+through tools registered by the page. Every tool shares state and data paths
+with the visible React interface, so the person and the agent stay on the same
+screen.
 
-Live: https://webmcp-superweb.vercel.app
-Source: https://github.com/HuyDoan-2112/webmcp-superweb
-Agent brief: https://webmcp-superweb.vercel.app/llms.txt
-Licence: MIT
+| Submission item | Link |
+| --- | --- |
+| Live app | [webmcp-superweb.vercel.app](https://webmcp-superweb.vercel.app/) |
+| Source | [github.com/HuyDoan-2112/webmcp-superweb](https://github.com/HuyDoan-2112/webmcp-superweb) |
+| Demo video | [youtu.be/nIOFaWsP4_Y](https://youtu.be/nIOFaWsP4_Y) |
+| License | [MIT](LICENSE) |
 
-## The problem
+This file is the source text for the Devpost project story. Devpost does not
+require it in the repository, but keeping the story here makes its claims
+reviewable beside the code and data.
 
-Someone pastes a dashboard number into a deck and nobody checks whether it was
-real. The number that causes the damage is not the obviously broken one. It is
-the one that looks normal.
+## Inspiration
 
-In this dataset, November 2023 lost the euro exchange rates. Four countries
-vanish from the result entirely, which is loud. The Online channel keeps a
-figure that looks like every other month while 4,788 of its 18,831 order lines
-were never counted. That is the dangerous one.
+I asked an AI to help me choose a camera. It gave me megapixels, aperture, and a
+research plan. I already knew the outcome I wanted and the price I could pay.
+The remaining work was operating a store: searching its current catalogue,
+opening products, comparing the fields it actually had, and keeping the page in
+sync with the decision.
 
-## What the person and the agent each do
+An agent can try to do that by reading pixels and guessing which element is the
+search box. The website already knows what each control does. WebMCP lets the
+page state that directly.
 
-The agent decides what may be written. Before drafting any section it reads the
-canonical figure back from `/api/query` and the quality verdict from the
-pipeline's own check file, then publishes, warns, or refuses per section. It
-cannot supply a figure: `draft_report` has no numeric input.
+The dashboard side came from the same problem. A revenue figure can look
+ordinary after a pipeline loses rows. The page knows which filters are active,
+which run produced the data, and which checks failed. The agent should see that
+evidence before it writes a number into a report.
 
-The person decides whether it may be sent. The drafted report lands on the page
-marked "Agent draft, awaiting your review" with an Approve for export button.
-`build_deck` refuses while that flag is false, and no registered tool can set
-it. An agent that could approve its own draft would make the step theatre.
+## What it does
 
-## Why this needs WebMCP rather than a hosted MCP server
+SuperWeb has two surfaces on one origin.
 
-A remote analytics server can query the warehouse. It does not know which
-number is on the screen, which surface is open, whether a check has failed, or
-whether the warning will still be attached when the figure moves into a
-document. SuperWeb registers and removes capabilities as the page changes: the
-catalogue tools swap for dashboard tools at sign-in, report tools appear when
-the report opens, diagnostic tools appear once a check has failed, and a
-camera's preview recipe appears only while that camera is open. Every tool
-drives the same store setters a click drives, so the person watches the page
-move as the agent works.
+The public surface is a catalogue of 28 photographed products. An agent can
+search and filter it, open and compare products, manage a cart and wishlist,
+send a trade enquiry, switch the interface between five languages, and inspect
+the claim behind each promotion. These actions move the same store state as a
+person's click.
 
-## Ninety seconds, three prompts
+The catalogue records price, colour, weight, brand, and category. It does not
+record sensor size, aperture, wattage, or decibel levels. The tools do not fill
+those gaps. When a product has a Kestrel-authored profile,
+`get_preview_recipe` appears and returns written guidance plus named photo
+treatments. The response labels them as the shop's suggestions, not measured
+hardware behavior.
 
-Chrome 149 or later. The deployed origin carries a WebMCP origin trial token,
-so no flag is needed there. Clear site data first: a leftover session cookie
-opens the app on the dashboard and skips the surface swap.
+Staff sign-in swaps the catalogue tools for dashboard tools. The agent can read
+six metrics, split them by supported dimensions, check whether an exact slice
+is publishable, draft a report, and trace a number back through the pipeline.
 
-**1. Draft the report**
+The report is where the safety rule becomes visible. `draft_report` accepts no
+numeric value. It reads each figure from `/api/query` and each verdict from the
+pipeline record. A sound section gets its figure. A degraded section keeps its
+figure with the missing-row warning attached. A blocked or unchecked section
+gets no figure.
 
-> Sign in as Maya and draft the November 2023 net revenue report by country.
-> Publish only figures the pipeline supports, and explain anything you refuse.
+The person keeps the last decision. A draft lands on the page marked "Agent
+draft, awaiting your review." No tool can approve it. `build_deck` refuses until
+the person presses **Approve for export**.
 
-Four countries publish. France, Germany, Italy and the Netherlands publish no
-figure. Online publishes with its gap stated in the same sentence as the
-number. The report appears on the page, unapproved.
+## The failure we test
 
-**2. Ask why two failures are treated differently**
+The demo period is November 2023. The ETL deliberately removes the 30 EUR to
+USD rates for that month before the silver join. The join then rejects 7,831 of
+31,084 order lines.
 
-> Why does Germany have no publishable figure while Online still has one that
-> cannot be trusted without a warning?
+- Germany loses 1,739 of 1,739 lines. Its report section is blocked and contains
+  no revenue figure.
+- The Online slice loses 4,788 of 18,831 lines. Its section is degraded and
+  keeps the figure with a 25.4 percent shortfall warning.
+- The United States loses no lines. Its promotion claim is publishable.
+- The camera promotion has no category-level check. Its claim is `unchecked`,
+  not approved by silence.
 
-Germany lost 1,739 of 1,739 lines, so there is nothing to state. Online lost
-4,788 of 18,831, so the figure stands with the shortfall attached. The
-diagnostic tools registered when the failed check was discovered.
+The defect is planted, but its consequences are not hand-written fixtures.
+DuckDB performs the join, `checks.py` counts the rejected rows, and the API reads
+the generated JSON and parquet files.
 
-**3. Change who is asking**
+## How we built it
 
-> Switch to Tom on Data Platform and trace the lineage behind Germany's missing
-> revenue.
+The front end uses React 19, TypeScript, Vite, Tailwind CSS, Recharts, and
+shadcn/ui components. Vercel serves the production build and the TypeScript API
+functions. DuckDB reads committed parquet files for the catalogue and metrics.
 
-The same failure, answered at a different depth: check name, row counts, and
-the lineage page rather than a business sentence.
+`src/store.ts` holds the page state. React components subscribe to it, and
+imperative WebMCP tools call its exported setters. Both then read the same API
+clients in `src/api.ts`. No tool imports the DuckDB helper or composes SQL.
 
-Then press Approve for export and ask the agent for the deck. Ask before
-approving and it refuses.
+`src/mcp/register.ts` manages five tool groups:
 
-## Architecture
+- `public` while the catalogue is visible
+- `internal` after staff sign-in
+- `preview` while a profiled product is open
+- `report` while the report builder is open
+- `diagnostics` after a check returns a non-`ok` verdict
 
-`etl/` runs DuckDB over the Contoso dataset, bronze to silver to gold, and
-writes the checks and run metadata that everything downstream reads. `api/`
-serves the gold parquet read-only. `src/mcp/` registers the tools. A tool never
-queries data itself: it drives the UI, and the UI calls `/api/*`, the same path
-a click takes.
+Each group owns an `AbortController`. Closing a group aborts its registrations,
+so irrelevant tools leave the agent's tool list when the page changes.
 
-## What was measured
+The catalogue search is also a declarative tool. The existing form carries
+`toolname`, `tooldescription`, `toolautosubmit`, and field descriptions. Chrome
+builds `search_catalog_form` from the markup, fills the real controls, and runs
+the same submit handler as a person.
 
-Every number here came from the committed data, not from prose.
+Metric and dimension enums come from `shared/metrics.ts`. Catalogue facets come
+from `/api/products`. Promotion codes come from the committed promotion record.
+Handlers still validate arguments because the tested browser exposed schema
+violations to `execute`.
 
-| Fact | Value | Source |
-| --- | --- | --- |
-| November order lines rejected | 7,831 of 31,084 | `data/meta/quality_checks.json` |
-| Countries blocked outright | France, Germany, Italy, Netherlands | same |
-| Online lines missing | 4,788 of 18,831, 25.4 per cent | same |
-| Public tools registered | 12, rising to 13 on a camera | `docs/probe-preview.mjs` |
-| A fabricated $999,999 reaching the page | never | `docs/probe-report-flow.mjs` |
-| Deterministic scenarios passing | 20 of 20, against the live deployment | `npm run eval` |
+## Challenges we ran into
 
-The exchange rate gap is injected on purpose, by two lines in
-`etl/sql/01_bronze.sql`. Everything downstream of those lines is real: the
-rejected joins, the checks, the counts, the lineage, and the refusal.
-`docs/adr/0003-the-fx-gap-is-planted.md` says so and names the line.
+### Tool output has no declared schema
 
-## Verifying it
+The browser advertises `inputSchema`, but the tested WebMCP implementation has
+no equivalent contract for results. The trust and report tools append a fenced
+JSON block after their prose. Blocked sections omit the figure key instead of
+using `0` or `null`, because no figure and zero revenue are different facts.
+
+### Trust has to match the exact slice
+
+An early implementation fell back to the whole-month check when no scoped check
+matched. A request for Spain could receive November's overall verdict under
+Spain's name. The trust layer now returns `unchecked` when the pipeline recorded
+nothing for the exact metric, period, and filter.
+
+### Images do not travel through this tool path
+
+The Chrome build we tested returned text content from WebMCP tools. SuperWeb
+therefore returns an authored photo treatment as text. The caller may give that
+recipe and their own photo to an image model, but the page never claims that
+WebMCP transported or analyzed the image.
+
+### Page context changes the useful tool set
+
+Keeping every tool registered made selection harder and left actions available
+for interfaces no longer on screen. Registration now follows page state. The
+preview tool even rebuilds when the open product changes, because each profile
+has a different look enum.
+
+## What we learned
+
+The useful part of WebMCP is shared context, not a shorter way to call an API.
+The agent can move the page, the person can inspect the result, and both can
+refer to the same selected product or report draft.
+
+We also learned that a quality verdict needs the same scope as the number it
+governs. A month-wide verdict cannot safely stand in for Germany or Online. The
+filter belongs in the trust key.
+
+Tool descriptions carry workflow today. `start_report` tells the agent which
+tool becomes relevant next, and `draft_report` points to the human approval
+step. That works, but it depends on the model reading prose. A first-class way
+to describe tool sequences would be stronger.
+
+## What's next
+
+The first extension would be typed tool output with optional fields. The second
+would be a page-declared workflow that can express ordering and human approval.
+Multimodal WebMCP content would let a product page return the image bytes it has
+already loaded instead of making the agent fetch a URL through a separate path.
+
+The current build stops at a slide outline. A production report flow would
+create a real presentation only after approval, store the run ID with the
+artifact, and keep every degraded warning attached to the figure it qualifies.
+
+## Verification
+
+The repository includes three Chrome probes and 20 deterministic tool
+scenarios. They verify registration changes, the preview tool lifetime, report
+approval, scoped verdicts, and the rule that an agent-supplied `$999,999` never
+reaches the page.
 
 ```bash
-npm run verify          # typecheck and build
-npm run dev             # then, in another shell:
-npm run verify:webmcp   # three real-Chrome probes
-npm run verify:origin-trial  # the production token, with the flag off
-npm run eval            # 20 deterministic scenarios, pass or fail
+npm run verify
+npm run dev
+npm run verify:webmcp
+npm run eval
 ```
 
-The probes drive the app through `document.modelContext` in real Chrome and
-print what the browser did. They are the reason the claims above are stated
-rather than hedged.
+These checks measure tool behavior with fixed arguments. They do not measure
+whether a language model chooses the right tool from an ambiguous prompt.
 
-`npm run eval` is the deterministic half of Chrome's suggested WebMCP
-evaluation. Every scenario calls a tool with fixed arguments and asserts on
-what came back, so it measures what the tools do. The run below is against
-https://webmcp-superweb.vercel.app, not a local server:
-
-| Group | Scenarios | Passing |
-| --- | --- | --- |
-| Contextual registration and unregistration | 5 | 5 |
-| The human approval boundary | 4 | 4 |
-| Verdicts matching what the pipeline recorded | 3 | 3 |
-| Refusing malformed or invented input | 3 | 3 |
-| A number without evidence reaching the page | 3 | 3 |
-| Reading the catalogue and the authored profile | 2 | 2 |
-
-The half it does not measure is whether a model picks the right tool, supplies
-the right arguments, or recovers from an ambiguous prompt. That needs real
-model runs, which are not in this repo, so no number here should be read as a
-claim about model behaviour.
-
-## Known limits
-
-`build_deck` returns a slide outline rather than a .pptx file. The demo session
-is identity, not security: registration happens in the browser and is not a
-security boundary, which is why the server decides how deep an answer goes.
-Quality checks exist for country and channel, so a question scoped by category
-answers `unchecked` rather than `ok`, and that is deliberate.
+Built by Tan Dat Ta and Huy Doan.

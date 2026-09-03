@@ -6,7 +6,8 @@
 // is what we expect the server to say, never what the client decides.
 //
 // Nothing verifies these. There are no passwords and this is not a login. The
-// server reads a cookie and answers at a depth. See CONTEXT.md on "surface"
+// server reads a cookie and answers at a depth. See the CLAUDE.md glossary
+// on "surface"
 // versus "audience".
 
 import type { User } from "@shared/types";

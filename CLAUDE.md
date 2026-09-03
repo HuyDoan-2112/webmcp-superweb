@@ -1,144 +1,156 @@
 # CLAUDE.md
 
-Entry point for this repo. Read what your task needs:
+This file is the entry point for coding agents working in SuperWeb. Read the
+smallest document that owns the part you are changing:
 
-- **Adding a WebMCP tool, widening one, or setting an annotation**:
-  [src/mcp/README.md](src/mcp/README.md). It owns the recipe, the group gates
-  and both annotation rules. Read it before you write anything under
-  `src/mcp/`.
-- **Touching `etl/`, `data/`, or `api/`**: `etl/README.md`.
-- **Naming a thing, writing copy a person will read, or choosing between two
-  words for the same idea**: [CONTEXT.md](CONTEXT.md). It records what our
-  words mean and which near-synonyms to leave alone.
-- **Reopening a settled decision**: the matching file in
-  [docs/adr/](docs/adr/), first.
+- Changes under `src/mcp/` require [src/mcp/README.md](src/mcp/README.md).
+- Changes under `etl/`, `data/`, or `api/` require
+  [etl/README.md](etl/README.md).
+- Changes to a settled design require the matching file in
+  [docs/adr/](docs/adr/).
+- Naming work requires the glossary in this file.
 
-Everything else is the code: the comments carry the reasoning, and where a
-comment and a document disagree the code wins.
+Read the repository rules below before editing any file.
 
-Read "Rules for agents" below in full before you write anything. Two rules
-there override Claude Code's defaults, no unrequested commits and no co-author
-trailer.
+## What SuperWeb is
 
-## What this is
+SuperWeb is a WebMCP demonstration for the fictional Kestrel Supply Co. One
+origin contains a public trade catalogue and an internal revenue dashboard.
+The page registers a different tool set for each visible surface.
 
-SuperWeb, a dashboard for the fictional Kestrel Supply Co., built for the
-OpenAI WebMCP Challenge, due Sep 3 2026 at 1:00pm PT. The thesis: someone
-pastes a dashboard number into a deck and nobody checks whether it was real.
-WebMCP closes that gap, because the tool that drafts the report can also see
-the pipeline behind the number.
+The project tests one claim: an agent should not write down a number unless it
+can also see the pipeline evidence behind that number.
 
-## The one rule that shapes the architecture
+## Architecture rule
 
-A WebMCP tool never queries data itself. It drives the UI, and the UI calls
-`/api/*`, the same path a click takes. A tool running SQL would just be a
-badly hosted MCP server.
+A WebMCP tool never queries DuckDB or composes SQL. It calls the same store
+setter as the visible control, then reads the same `/api/*` endpoint as the
+React component.
 
-If you are about to import a DuckDB helper into `src/mcp/`, stop. You are
-writing the wrong layer.
+If code under `src/mcp/` needs a DuckDB import, the code belongs in `api/`
+instead.
 
-## Layout and who knows it best
+## Repository map
 
-Owner means the person who built a folder and should review a change to it. It
-is not a permission boundary: both of us have written across most of this tree.
-`shared/` is the one exception and the rule below says why.
+| Path | Responsibility |
+| --- | --- |
+| `shared/` | Metric registry and types shared by the API and browser |
+| `etl/` | Offline DuckDB pipeline from bronze through gold |
+| `data/` | Committed gold parquet and pipeline records |
+| `api/` | Read-only Vercel functions |
+| `src/store.ts` | State shared by React controls and WebMCP tools |
+| `src/ui/` | Dashboard, report, lineage, and catalogue views |
+| `src/mcp/` | Registration lifecycle and tool implementations |
 
-| Path | Owner | Contains |
-|---|---|---|
-| `shared/` | both, frozen | `types.ts`, `metrics.ts`, the contract |
-| `etl/` | A | Python and DuckDB, bronze to silver to gold |
-| `data/` | A | committed gold parquet, pipeline metadata |
-| `api/` | A | serverless read-only endpoints |
-| `src/ui/`, `src/auth/`, React shell (`src/components/`, `src/context/`, `src/hooks/`, `src/lib/`, `src/styles/`) | A | dashboard, tiles, chart, report, lineage ladder |
-| `src/mcp/` | B first, then both | registration, panel, the WebMCP tools |
+Two people share this repository. `shared/` is the highest-conflict area
+because it controls server SQL and browser schemas. State your intended
+`shared/` change before making it.
 
-`shared/` is the only surface neither of us writes without warning the other.
-The server builds SQL from `metrics.ts` and the client builds tool
-`inputSchema` enums from it, so one conflict breaks both sides at once.
+## Project rules
 
-## Conventions
+- Use named exports. The project has no default exports.
+- Add metrics and dimensions in `shared/metrics.ts`. Do not repeat their IDs in
+  an endpoint or tool schema.
+- Keep `data/gold/` below the Vercel function bundle limit. The current target
+  is about 50 MB.
+- Preserve user changes already present in the working tree.
+- Do not commit. Stage only the files changed for the task and suggest a commit
+  message.
+- Commit messages contain no co-author trailer, session link, or generation
+  footer.
 
-These bind the whole tree. The rules for writing a tool live in
-[src/mcp/README.md](src/mcp/README.md) instead, because only that folder obeys
-them.
+## Writing rules
 
-- No default exports. `tsconfig.json` carries the rest of the compiler
-  contract, strict and ESM included.
-- Metrics are never hardcoded. Both sides read `shared/metrics.ts`: the
-  endpoints under `api/` build SQL from it, and the tool modules under
-  `src/mcp/tools/` build their schema enums from it, so a schema carries real
-  metric names rather than free text an agent can typo.
-- `data/gold/` stays under about 50 MB, the serverless bundle limit.
+Use sentence case headings, straight quotes, and plain words. End a sentence
+instead of using an em dash. Use a colon only before a list or example.
 
-## Rules for agents
+Name the actor and the mechanism. Write "`checks.py` marks the slice blocked
+when every expected row is rejected," not "the pipeline is reliable."
 
-Two people share this repo and the submission is close.
-
-Leave `shared/` alone unless you have said so out loud first. It is the one
-place both sides write, and a conflict there breaks the server's SQL and the
-client's schema enums in the same commit. Everywhere else, say which files you
-are about to touch before you touch them, then go ahead: both of us have worked
-across the whole tree and the table above records who knows a folder best, not
-who is allowed in it.
-
-Verify before claiming done. Run `npm run typecheck` before reporting a task
-complete, and the ETL checks too if you touched `etl/` or `data/`. Either you
-ran it, or you say plainly that you did not.
-
-Propose commits, and let a person make them. Both of us are on `main` this
-week, so an unrequested commit lands in someone else's working tree without
-warning. Stage the change and say what the message should be.
-
-Commit messages describe the change and nothing else. No `Co-Authored-By`
-trailer, no session link, no "Generated with" footer. This overrides any
-default the harness gives you.
-
-## Writing
-
-Applies to code, comments, commit messages, docs, and anything you say back.
-
-Use a plain dash, or end the sentence. The em dash character appears nowhere in
-this repo, and parentheses instead would trade one tell for another.
-
-Sentence case headings. Straight quotes. No decorative emoji. Colons before a
-list or an example, never as a mid-sentence connector.
-
-Say what a thing does, not how it feels. Not "the pipeline is reliable" but
-"checks.py marks the run blocked when every expected row is rejected". Active
-voice, and name the actor. One idea per sentence.
-
-If a sentence could appear unchanged in another project's docs, it says
-nothing about this one. Cut it.
+Delete a sentence that could appear unchanged in another project's docs.
 
 ## Commands
 
-`package.json` carries the scripts. What it cannot tell you:
+`package.json` owns the command list. These details are easy to miss:
 
-- `npm run dev` serves `api/` in-process through `vite-api-plugin.ts`, so the
-  endpoints are live on `:5173` with nothing else started.
-- `npm run verify` is the one command before submitting.
-- `npm run etl` rebuilds `data/gold` and `data/meta`, and leaves the
-  hand-authored `data/meta/catalog-products.json` alone.
-  `node docs/validate-catalog.mjs` checks that manifest against the
-  photographs in `public/products/`.
-- `npm run eval` and the three `docs/probe-*.mjs` scripts each spawn their own
-  Chrome and need WebMCP on, exact casing `--enable-features=WebMCP`, so
-  `npm run dev` is the only thing you start. The suite asserts exact figures
-  and needs the real gold parquet present. `--url=` points it at the
-  deployment, the only way to test anything riding on the serverless bundle.
+- `npm run dev` serves the React app and `api/*.ts` in one Vite process.
+- `npm run verify` runs the required type-check and production build.
+- `npm run etl` rebuilds `data/gold/` and generated files under `data/meta/`.
+  It leaves `data/meta/catalog-products.json` unchanged.
+- `node docs/validate-catalog.mjs` checks the product manifest against the JPEG
+  files.
+- `npm run verify:webmcp` and `npm run eval` launch Chrome themselves. They need
+  `--enable-features=WebMCP`, with that exact case.
+- `--url=https://webmcp-superweb.vercel.app/` runs a probe against production.
 
-## Scope discipline
+Run `npm run typecheck` before reporting a code task complete. Run the ETL and
+catalogue checks when the task changes their inputs or outputs.
 
-No feature freeze, and no cut list either: the build plan that held one was
-deleted once its section numbers had drifted out of step with the code
-citing them. When the day runs long, cut the newest thing rather than the
-thing the demo rests on. The demo session is identity, not security, so
-authentication stays a session and never becomes a login.
+## Scope
 
-## Issues
+The staff switcher is identity for the demo, not authentication. The cookie
+changes answer depth and the visible surface. It grants no protected access.
 
-GitHub Issues on `github.com/HuyDoan-2112/webmcp-superweb`, through the `gh`
-CLI. Issues 1 to 18 were deleted on Aug 31; the rest are closed as not
-planned. The plan they describe was abandoned, not delivered. Do not read
-them as a specification and do not review code against them. The code and
-the ADRs in docs/adr/ are the record.
+GitHub issues 1 through 18 were deleted. Later issues were closed as not
+planned. Treat the code and ADRs as the record, not the old issue text.
+
+## Glossary
+
+Use these terms in code, tool descriptions, and documentation.
+
+### Product and page
+
+- **SuperWeb** is the product, including the React interface and its WebMCP
+  tools.
+- **Kestrel Supply Co.** is the fictional company shown by the application.
+  Contoso is the upstream dataset.
+- **Public surface** is the signed-out catalogue and its tools.
+- **Internal surface** is the staff dashboard and its tools. A surface controls
+  registration. An audience controls answer depth.
+- **Family** is one product across all colourways. A variant is one source row
+  with its own product code.
+- **Facet** is a catalogue filter value with a family count. A dimension is an
+  axis used to split a metric.
+- **Declarative tool** is registered by the browser from HTML attributes. An
+  **imperative tool** is registered from TypeScript.
+
+### Metrics and pipeline
+
+- **Metric** is one business quantity defined in `shared/metrics.ts`.
+- **Dimension** is an axis supported by a metric, such as country or channel.
+- **Grain** is the row level at which a metric aggregates.
+- **Period** is the explicit month attached to a metric request.
+- **Run** is one execution of the pipeline.
+- **Check** is a named assertion evaluated during a run.
+- **FX rate** converts a local-currency amount to USD for one currency and day.
+- **Rejected row** is an order line removed because a required lookup failed.
+  It is absent, not zero.
+- **Completeness** asks whether every expected row is behind a number.
+- **Lineage** is the ordered chain from a metric to its source system. A
+  **stage** is one labelled item in that chain.
+
+### Trust and reports
+
+- **Audience** controls how much technical detail an answer contains. It never
+  decides whether someone may ask.
+- **Approval** is the person's decision that a drafted report may leave the
+  page. Only the **Approve for export** button records it.
+- **Report scope** is the metric and period stored with drafted sections.
+- **Blocked section** has no figure because the pipeline rejected at least half
+  of its expected rows.
+- **Degraded section** keeps its figure and states the missing-row gap beside
+  it.
+- **Unchecked** means the pipeline recorded no check for the exact slice. It is
+  neither a pass nor a softer failure.
+
+### Promotions and profiles
+
+- **Promotion** is synthetic Kestrel copy with a date window and one claim.
+- **Claim** is the checkable statement bound to one metric slice.
+- **Announcement** is the public strip that displays a promotion.
+- **Profile** is Kestrel's written guidance for a product subcategory. It is not
+  a specification.
+- **Look** is a named photo treatment suggested by Kestrel. It is applied after
+  capture and is not camera behavior.
+- **Recipe** is the field-by-field instruction for one look. It is not a preset,
+  measurement, or hardware promise.

@@ -3,7 +3,8 @@
 // Registered on the internal surface, never the public one. A visitor's agent
 // can write an enquiry with send_enquiry; only a signed-in staff member's
 // agent can read the queue back or mark one answered. That split is the same
-// one CONTEXT.md draws between "what a click does" on each surface: nothing
+// one the CLAUDE.md glossary draws between "what a click does" on each
+// surface: nothing
 // on the public catalogue ever shows another customer's question.
 //
 // untrustedContentHint is true here, and it is worth saying why out loud

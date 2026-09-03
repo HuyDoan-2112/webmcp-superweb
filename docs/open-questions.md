@@ -1,183 +1,174 @@
-# What this build measured against the WebMCP open questions
+# WebMCP questions this build tested
 
-The explainer tracks a set of open design questions. Building SuperWeb against
-Chrome 152 produced evidence for several of them. Everything below was measured
-with `node docs/probe-modelcontext.mjs` and `node docs/probe-report-flow.mjs`,
-not read off the explainer. Rerun both before trusting any line here.
+SuperWeb was tested against Chrome 152 with:
 
-## Multimodal input and output
+```bash
+node docs/probe-modelcontext.mjs
+node docs/probe-report-flow.mjs
+node docs/probe-preview.mjs
+```
 
-**Measured: tool results are text only.** `execute` must resolve to
-`{ content: [{ type: "text", text }] }`. Chrome 152 returns no other content
-type, and the IDL hands `executeTool` back a serialised JSON string.
+The findings below describe that browser build. Rerun the probes before using
+them as claims about another version or client.
 
-This decided a feature. We wanted product photography an agent could compare
-across two products, the way a person compares two listings before buying. There
-is no transport for it: an image has to become a URL inside a text field, and
-then the agent is fetching from the network rather than receiving from the page,
-which gives up the property that makes WebMCP interesting. We shipped
-`product-image.tsx`, which draws a deterministic figure from the catalogue
-record, and left the comparison to text.
+## Multimodal content
 
-The gap is real and specific. A shopping agent cannot see what it is buying.
-Product comparison is one of the most obvious uses of a tool-exposing web page,
-and it is exactly the use that text-only results cannot serve. Nearly every
-frontier model now takes images, so the limit is the wire, not the model.
+The tested tool path returned text content in this shape:
 
-Issue #41 says images "seem like a basic use-case we should support" and has no
-concrete proposal on it. Here is one, from having wanted it and gone without.
+```js
+{ content: [{ type: "text", text: "..." }] }
+```
 
-The interesting property of WebMCP is that the agent receives from the page
-rather than fetching from the network. An image returned as a bare URL throws
-that away: the agent then makes its own request, with its own headers, possibly
-unauthenticated, possibly to a different origin, and the page cannot know what
-came back. So the content entry should carry the bytes the page already has.
+SuperWeb originally needed product photography inside a comparison result. A
+URL in a text field would make the agent fetch the asset through a second
+request with different credentials and cache state. The page would no longer
+know which bytes the agent received.
 
-    { type: "image", data: <Blob | ImageBitmap>, mimeType: "image/webp", alt: "..." }
+The shipped flow keeps the boundary explicit. `get_preview_recipe` returns a
+text treatment. A caller may apply it to a photo in a separate image model, but
+the photo does not pass through WebMCP.
 
-A `Blob` is the web's own answer here and needs no new serialisation. The page
-already holds one for anything it has drawn or fetched, and structured clone
-moves it without a copy the author has to write. For the common case where the
-image is already a same-origin resource the browser has cached, a variant
-carrying a URL plus an integrity hash would let the agent accept it without a
-second network trip.
+A useful multimodal result would carry the bytes the page already has, plus a
+text alternative:
 
-The `alt` field is not decoration. A tool returning an image with no text
-alternative is unreadable to a text-only agent and to a screen reader alike, and
-the same string serves both.
+```js
+{
+  type: "image",
+  data: blob,
+  mimeType: "image/webp",
+  alt: "Front view of the selected camera"
+}
+```
+
+`Blob` already supports structured cloning in browsers. A same-origin URL plus
+an integrity hash could cover cached assets without making a bare URL the trust
+boundary.
 
 ## Output schema
 
-**Every steering decision in this repo was a workaround for not having one.**
-`inputSchema` is enforced by the browser; nothing validates the way out. Since
-this was first measured, `check_data_trust` and `draft_report` grew a hand-rolled
-substitute: `src/mcp/structured.ts` appends a fenced JSON block after the prose,
-built from the same values, so an agent that parses gets `verdict`,
-`rejectedRows`, `expectedRows` and `runId` as fields instead of a paragraph it
-has to read correctly. Every other tool still answers in prose alone, and that
-is why our returns generally stay shaped as flat labelled records rather than
-sentences, one return naming one next tool with exact arguments.
+The tested API advertised `inputSchema` but no `outputSchema`. Trust decisions
+therefore arrived as prose unless the application added its own structure.
 
-It is still not `outputSchema`. Nothing enforces the block's shape and
-`getTools()` advertises none of it, so an agent has to know to look. The
-three-value verdict in `docs/adr/0002-trust-verdict-has-three-values.md` is the
-kind of contract a real `outputSchema` would declare rather than leave to
-convention. See the header of `src/mcp/structured.ts` for the absence argument
-we would bring to https://github.com/webmachinelearning/webmcp/issues/9.
+`src/mcp/structured.ts` appends a fenced JSON block to trust and report results.
+The block is generated from the same values as the prose. It includes fields
+such as `verdict`, `publishable`, `runId`, `expectedRows`, and `rejectedRows`.
 
-## Input and output schema validation
+Optional output fields matter here. A blocked section has no figure, so the JSON
+omits the figure key. Requiring a value would collapse "no figure exists" into
+`null` or `0`, which are different facts in this dataset.
 
-Native input validation would have removed roughly half the defensive code in
-`src/mcp/tools/`. Two failures we hit and had to hand-guard:
+## Schema validation
 
-- A section given `dimension` with no `value` silently widened into a
-  whole-month check, and a month-wide verdict was written under a heading naming
-  one country. `draft_report` now refuses the section.
-- A dimension the registry does not know coerced to `undefined` and did the
-  same. `check_data_trust` now refuses.
+Schema violations reached `execute` during development. The handlers still
+validate every argument even when `inputSchema` contains an enum.
 
-Both are schema violations. Both reached `execute`. An `enum` in `inputSchema`
-is documentation to the model, not a gate.
+Two failures shaped that rule:
 
-**Output validation is the more interesting half, and we would not want it
-naively.** Our tools deliberately withhold: a blocked slice is never queried, so
-its figure cannot appear even by accident. A validator that required a `value`
-field on every result would fight that. Absence has to be expressible -
-`structured.ts` already does this by hand, dropping the key rather than sending
-a null or a zero.
+- `draft_report` once accepted a dimension without a value and widened the
+  section to the whole month.
+- `check_data_trust` once coerced an unknown dimension to `undefined` and ran
+  the whole-period check.
 
-## Skills integration
+Both returned a plausible verdict for the wrong slice. The current handlers
+refuse malformed scope before changing the page.
 
-We have a five-call user journey and no way to declare it: `start_report`,
-`draft_report`, `check_data_trust`, `explain_data_issue`, `trace_lineage`.
-Today the sequence is carried entirely in return values, which works and is
-fragile, because it depends on the model reading prose in the order we wrote it.
+## Tool sequences
 
-The registration groups in `src/mcp/register.ts` are a skill boundary drawn by
-hand: four sets with four lifetimes, opened and aborted as page state changes. A
-skill primitive would let the page say "these five tools are one journey, in this
-order" instead of encoding it in text.
+The report flow uses several calls:
 
-## User prompting and elicitation
+```text
+start_report
+    -> draft_report
+    -> check_data_trust when another slice needs inspection
+    -> explain_data_issue or trace_lineage after a non-ok result
+    -> human approval
+    -> build_deck
+```
 
-Our answer is that the page is the confirmation surface. `draft_report` is
-`readOnlyHint: false` deliberately: it produces an artifact a person then acts on
-and hands around. Rather than prompting, the tool writes into the report the
-human already has open, so the human sees the result at the moment it is
-produced. That works because the page is visible. It would not work for a tool
-in a background tab or a service worker, which is where elicitation is needed.
+The API has no primitive for declaring this sequence. SuperWeb carries it in
+tool descriptions, results, and five registration groups with different
+lifetimes. That keeps irrelevant tools out of the list but still depends on the
+model reading prose correctly.
 
-## Tool progress reporting
+A workflow declaration should express ordering, the page condition for each
+step, and a human checkpoint that no tool can satisfy.
 
-Not needed here. Every tool answers in well under a second. Worth noting as a
-negative result: for a read-heavy dashboard, progress is not the missing piece.
+## Human confirmation
 
-## Cross-document tool response
+The report page is the confirmation surface. `draft_report` writes its result
+into the visible document. The person can inspect blocked sections and degraded
+warnings before pressing **Approve for export**.
 
-We hit the adjacent case rather than navigation. Our declarative form tool,
-`search_catalog_form`, is registered by the browser from markup in
-`src/ui/public/header.tsx`. When React unmounts the form, the browser
-unregisters the tool. That is the correct behaviour and we verified it. But it
-means a declarative tool's lifetime is tied to a DOM subtree, and a page that
-re-renders during a tool call is a case the author has to think about with no
-primitive to help.
+`build_deck` reads the same `reportApproved` flag as the page and refuses while
+it is false. No registered tool can set the flag. This pattern depends on a
+visible foreground page, so it does not solve confirmation for a background tab
+or service worker.
 
-One measured detail worth recording: **the browser re-synthesises a declarative
-tool's schema after the markup changes.** A `<select>` whose options arrive from
-an async fetch still ends up with a real `enum`, not the empty one it first
-renders with. We changed the category list from a hardcoded array to live facets
-specifically because a wrong enum is worse than a slow one, and the probe
-confirmed the enum carries all eight live categories.
+## Declarative tool lifetime
 
-## Built-in agent exposure, and `exposedTo`
+`search_catalog_form` comes from the form markup in
+`src/ui/public/header.tsx`. Chrome removes the tool when React unmounts the
+form during staff sign-in.
 
-Not exercised. We register only from our own modules and expose to the top-level
-document, which is the whole of our defence against the published attack surface
-of runtime registration.
+The probe also found that Chrome rebuilds the declarative schema after the
+form's `<select>` options change. The category list begins empty, then receives
+eight categories from `/api/products`. The final tool schema contains those
+eight enum values.
 
-The proposed default (top-level exposes, iframes do not) matches what we would
-have chosen. Our concern is the opposite direction: **we would want a way to
-say that a tool's *results* are untrusted even when the tool itself is ours.**
-`untrustedContentHint` exists and we set it on the catalogue tools, because
-product and brand copy is the supplier's rather than ours. The explainer lists
-the annotation as a proposed mitigation without implementation, so today it is a
-label the consumer may ignore.
+This behavior keeps the schema aligned with the control. It also ties the tool
+lifetime to a DOM subtree, so a re-render during a call needs deliberate testing.
 
-## Service workers
+## Result trust
 
-The case for it, from this build, in one line: **the page had to invent a
-subscription primitive because it does not have one.**
+SuperWeb registers descriptors only from imported modules. Fetched data can
+populate enum values but cannot define a tool.
 
-`list_promotions` returns a `recheck_after` date per promotion, which is the day
-that promotion's window closes and the answer stops being current. That is the
-whole of what a mailing list would give a shopper, minus the address, minus the
-account, minus an OAuth layer between the agent and a mailbox.
+Catalogue tools set `untrustedContentHint: true` because their results include
+supplier names and product copy. `list_enquiries` also sets it because customer
+messages are untrusted text. The annotation is useful metadata, but the tested
+browser did not enforce how a client must treat it.
 
-It is deliberately a fact and not an instruction. A site that writes imperatives
-into content an agent reads has built prompt injection and called it a feature.
-What a site can honestly publish is when its own answer expires; whether that is
-worth a scheduled look is the agent's decision and the person's, and today it
-needs an open tab to act on.
+Declarative forms cannot set that annotation. `search_catalog_form` therefore
+returns a count and points to `search_products` for rows containing supplier
+copy. [ADR 0004](adr/0004-the-declarative-tool-answers-with-a-count.md) records
+the tradeoff.
 
-## The thing the explainer does not say
+## Background work
 
-`executeTool(tool, args)` takes `args` as a **JSON string**, not an object,
-symmetrically with `getTools()` handing `inputSchema` back as a string. Passing
-an object throws `UnknownError: Failed to parse input arguments`. This cost an
-afternoon and is not in the explainer. See the header of
-`src/mcp/model-context.d.ts`.
+Page tools exist only while the page is open. SuperWeb cannot use them as a
+subscription or scheduled background task.
 
-## Designed and not built: reviews
+`plan_promotion_reminder` returns a promotion window and RRULE but schedules
+nothing. The caller can create a reminder elsewhere from that data. A service
+worker tool could keep a site-owned capability available in the background, but
+it would also need a clear permission and confirmation model.
 
-The catalogue has no reviews, and the reason is worth recording because the
-first instinct was that reviews would contradict the project.
+## Progress events
 
-They would not, if the tool over them behaves the way the rest of this build
-behaves. Reviews are third-party claims, which is what `untrustedContentHint`
-is for, and a `read_reviews` tool that returned them verbatim and refused to
-compress them into a single star rating would be a second instance of the same
-argument: a number nobody counted should not be printed as though someone had.
-"4.6 from 812 reviews" is a metric with no pipeline behind it.
+The current tools complete in under a second during local tests. Progress
+reporting did not solve a problem in this build. The cold production catalogue
+probe was the exception, and the registration adapter handles it with an
+eight-second build deadline and a visible registration log.
 
-Not built because the submission deadline is closer than the work, and a live
-recording matters more than another surface.
+## API details missing from the explainer
+
+Chrome 152 exposed `document.modelContext`. `navigator.modelContext` was absent
+in the measured run.
+
+`getTools()` returned each `inputSchema` as a JSON string. `executeTool` also
+required its arguments as a JSON string and resolved to a serialized JSON
+string. Passing an object produced `UnknownError: Failed to parse input
+arguments`.
+
+`src/mcp/model-context.d.ts` records that observed shape. The probes are the
+source of truth if the browser changes.
+
+## Reviews were considered and cut
+
+The catalogue has no review data. A future `read_reviews` tool should return
+individual reviews as third-party text and avoid inventing a star average unless
+the page has a reproducible aggregation behind it.
+
+That feature was cut because it did not strengthen the recorded demo. The
+existing project already tests the same principle with promotion claims and
+report figures.

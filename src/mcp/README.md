@@ -1,134 +1,153 @@
-# Adding a tool
+# WebMCP tools
 
-The reasoning behind this folder was scattered across file headers in
-`register.ts`, `adapter.ts`, `catalog.ts`, `read.ts` and `api.ts`. This
-collects it, because the pattern is only worth having if the next person can
-follow it without reading five files first.
+This directory registers the tools that operate SuperWeb. A tool that moves the
+page calls an exported setter from `src/store.ts`. A tool that reads data uses
+`src/mcp/api.ts`, which wraps the same API client as the React interface.
 
-It lives here rather than in `CLAUDE.md` because it is about this folder, and a
-recipe drifts fastest when it sits far from the code it describes. `CLAUDE.md`
-keeps the rules that bind the whole tree; every rule about writing a tool is
-here.
+No file under `src/mcp/` imports DuckDB or composes SQL.
 
-## Start by not adding one
+## Decide whether a new tool is needed
 
-**The strongest rule in this codebase is that capability scales through
-arguments, not registrations.** `breakdown_metric` answers roughly forty
-questions from one registration: six metrics against eight dimensions. Forty
-named tools would answer the same questions and make the agent worse at
-choosing between them. This build tops out at thirteen registered at once, which
-is enough for confusion. That peak is the public surface with a profiled camera
-open: eleven imperative tools, plus `search_catalog_form` which the browser
-registers from the HTML, plus `get_preview_recipe`. The internal surface peaks
-at twelve, with the report open and a check failed. Count both before adding
-anything, because the declarative tool is easy to forget.
+Prefer one capability with arguments over several narrow registrations.
+`breakdown_metric` covers six metrics and every supported dimension. A separate
+tool for each combination would make selection harder and duplicate schemas.
 
-So the first question is never "what should this tool be called". It is:
+Before adding a tool, answer these questions:
 
-1. **Can an existing tool answer this with one more argument?** If yes, add the
-   argument. The chart is the worked example: it is a `chart` boolean on
-   `get_metric` and `breakdown_metric`, not a `chart_metric` tool that would
-   have duplicated `metric`, `period` and `dimension` and overlapped
-   `breakdown_metric` on every call.
-2. **Can an existing tool answer this by returning more?** If yes, widen the
-   return value and change no schema at all. `breakdown_metric` returns a pipe
-   table rather than aligned prose; that was a return-value change, because a
-   `format` enum would have been one more thing for the agent to get wrong in
-   exchange for output it can have for free.
-3. **Is it named after a question rather than a capability?** `get_coupons_today`
-   was rejected for exactly this: it needs a sibling the moment somebody asks
-   about tomorrow. `list_promotions` takes a date instead.
+1. Can an existing tool accept one more argument?
+2. Can an existing result include the needed field?
+3. Is the proposed name tied to one question or date instead of a reusable
+   capability?
 
-Only when all three are no is the answer a new tool.
+Add a registration only when all three answers are no.
 
-## Settled forever
+## Rules every tool follows
 
-These are not per-tool judgement calls. Changing one of them is changing the
-architecture, and needs saying out loud first.
+- A state-changing tool uses the store. It does not mutate component state or
+  the DOM directly.
+- A data read goes through `src/mcp/api.ts` and the same `/api/*` endpoint used
+  by the page.
+- Schema enums come from a real source. Metrics come from
+  `shared/metrics.ts`, catalogue facets from `/api/products`, and promotion
+  codes from `data/meta/promotions.json`.
+- Handlers validate arguments even when the schema contains an enum. The tested
+  Chrome build allowed schema violations to reach `execute`.
+- Tool factories are imported by `src/mcp/register.ts`. Fetched content never
+  creates a descriptor.
+- A response names a useful next tool when the workflow needs another step.
+- Decisions such as trust verdicts also return a JSON block through
+  `src/mcp/structured.ts`.
+- A blocked or unchecked report section omits the figure field. It never sends
+  `0` as a substitute for missing evidence.
+- A person approves a report. No tool calls `approveReport`.
 
-- **A tool never queries data itself.** It drives the UI through the store, and
-  the UI reads `/api/*`. `src/mcp/api.ts` is the only read seam and its header
-  says where the line sits. This is the rule `CLAUDE.md` leads with, because it
-  is the one that stops a wrong layer being written at all.
-- **A tool that moves the page goes through the store**, never around it, so the
-  human and the agent share one state path. `src/store.ts` has a "Public
-  surface" block listing which setter each tool drives.
-- **Schema enums are built at registration time from real data**: metric ids
-  from `shared/metrics.ts`, catalogue facets from an `/api/products` probe,
-  promotion codes from `data/meta/promotions.json`. The agent cannot name a
-  thing that does not exist, because the browser will not let it.
-- **Tools are registered only from modules imported here.** Runtime
-  registration from fetched content has a published attack surface.
-- **Sequencing happens through return values, not nesting.** A tool's response
-  is context the agent reads, so that is where you steer the next call. Name
-  the tools the agent can actually see: a public tool must never point at an
-  internal one.
-- **A tool that returns a decision returns it as data too**, through
-  `src/mcp/structured.ts`, so the agent can act on the decision without parsing
-  the sentence that carries it.
-- **A person approves what leaves the page, and no tool can.** `build_deck`
-  refuses while `reportApproved` is false, only the button in
-  `src/ui/report.tsx` sets it, and redrafting clears it. An agent that could
-  approve its own draft would make the step theatre. See `CONTEXT.md` on
-  approval.
-- **Registration follows page state and never identity.** Nothing here refuses
-  anyone anything. The surface swap is not a security boundary; the server
-  decides answer depth. See `CONTEXT.md` on surface versus audience.
+## Registration groups
 
-## Per-tool judgement
+`src/mcp/register.ts` reconciles five groups against page state. Each group owns
+an `AbortController`, and closing it unregisters the group's tools.
 
-- **Which group.** `public` while the catalogue is on screen, `internal` once
-  someone has signed in, `report` while the report is open, `preview` while a
-  product Kestrel wrote a profile for is open, `diagnostics` once a check has
-  failed. A new group needs a real page condition that is sometimes absent:
-  promotions did **not** get one, because they are a committed file and are
-  therefore always there, so a gate on "a promotion exists" would have been
-  theatre. `preview` earned one because most of the catalogue has no profile,
-  so the tool is genuinely absent on a kettle.
-- **`readOnlyHint`.** The MCP definition is "does not modify its environment",
-  and the page is the environment. A tool that calls a store setter is `false`
-  even when the change is trivially reversible. Every tool that calls none is
-  `true`.
-- **`untrustedContentHint`.** True for third-party text: product names, brand
-  names, supplier copy. False for text we wrote, which is why the promotions
-  tools carry `false` while `catalog.ts` carries `true`. A response that mixes
-  the two follows the third-party half, because the hint describes the riskiest
-  thing in the payload. This one reads backwards at a glance, so say why in a
-  comment.
-- **What state the tool commits.** A tool that writes to the store writes
-  everything a later reader needs, in the same call. `draft_report` commits the
-  metric and period alongside the sections, because `build_deck` titles the
-  deck long after the dashboard has moved on and has no other way to know what
-  the figures measure.
+| Group | Opens when | Tools |
+| --- | --- | --- |
+| `public` | The catalogue is visible | Catalogue, promotion, cart, wishlist, and enquiry tools |
+| `internal` | Staff has selected the dashboard surface | Metrics, trust, dashboard movement, report entry, and enquiry queue |
+| `preview` | A product with an authored profile is open | `get_preview_recipe` |
+| `report` | The report builder is open | `draft_report`, `build_deck` |
+| `diagnostics` | A check returned a non-`ok` verdict | `explain_data_issue`, `trace_lineage` |
 
-## The steps
+Registration follows visible context, not authorization. The staff cookie only
+changes answer depth. It is not a security boundary.
 
-1. Decide it is a tool at all, using the three questions above.
-2. Write it in a module under `src/mcp/tools/`, exporting a factory that
-   returns `ToolSpec[]`. Take the enum source as an argument if it needs one.
-3. Drive the store first in `execute`, then read `/api/*` for the answer, so the
-   number reported is the number on screen.
-4. Set both annotations deliberately and comment the reasoning.
-5. End the return value with what to call next, and why.
-6. Add the factory to a group in `register.ts`.
-7. Run `npm run typecheck`, then `npm run eval` with `npm run dev` up, because
-   the suite drives the real browser surface and a registration mistake shows
-   there and nowhere else.
+The product surface excludes the temporary `webmcp_probe` in
+`src/mcp/register.ts`. That probe uses the simplest one-argument registration
+to diagnose partial host support. Remove it before the final deployment because
+it adds an unrelated tool that never unregisters.
 
-## Two worked examples
+## Annotations
 
-**The promotions set** (issues #21, #25): three tools joined the existing public
-group with no new gate. `check_promotion` reads a verdict rather than
-registering the internal `check_data_trust`, because that tool answers in the
-internal register - check names, run ids, row counts - for an audience the
-server deliberately answers differently. The page shows selection only; the
-verdict is the tool's return value, because a page that told a shopper the
-number was bad would make the tool redundant.
+Set both annotations on every imperative tool.
 
-**The chart** (issues #22, #28, #29): no new tool at all. A `chart` argument on
-two existing tools, pointing at `/api/chart`, which renders the same Recharts
-module `TrendChart` renders. The endpoint stamps the trust verdict into the
-image, because an image travels where a transcript does not.
+`readOnlyHint` describes whether the tool changes its environment. The page is
+the environment. A tool that calls a store setter uses `false`, even if the
+change is reversible. A tool that only reads data uses `true`.
 
-Those issue numbers survive; issues 1 to 18 were deleted. `CLAUDE.md` says what
-the tracker is and is not.
+`untrustedContentHint` describes the riskiest content in the result. Product,
+brand, manufacturer, and customer-written enquiry text use `true`. Kestrel's
+own promotion copy and generated trust prose use `false`.
+
+Declarative tools cannot declare these annotations. For that reason,
+`search_catalog_form` returns counts and delegates supplier copy to the
+imperative `search_products` tool.
+
+## Add a tool
+
+1. Export a factory under `src/mcp/tools/` that returns `ToolSpec[]`.
+2. Pass any live enum source into the factory.
+3. In `execute`, validate the arguments before changing state.
+4. Call the store setter, then read the API result the page will render.
+5. Set `readOnlyHint` and `untrustedContentHint` with a short reason in code.
+6. Return a concrete result and name the next step only when one exists.
+7. Add the factory to the correct group in `src/mcp/register.ts`.
+8. Run `npm run typecheck`, `npm run verify:webmcp`, and `npm run eval`.
+
+A new group needs a page condition that can be false. Promotions stay in the
+public group because their committed record always exists. Preview has its own
+group because most products have no profile.
+
+## Public tools
+
+The catalogue normally exposes 12 product tools. Eleven are imperative and one
+comes from the search form's HTML. A profiled product adds the thirteenth.
+
+| Tool | Behavior |
+| --- | --- |
+| `search_products` | Moves the search and optional category or brand filters, then lists matching families |
+| `get_product` | Opens one product by code, key, or exact name |
+| `compare_products` | Reads two to four products without moving the page |
+| `filter_catalog` | Sets facets, price bounds, or page number |
+| `set_language` | Switches the public interface among five locales |
+| `list_promotions` | Lists promotions active on a date |
+| `check_promotion` | Opens a promotion and checks its bound metric slice |
+| `plan_promotion_reminder` | Returns the promotion window and an RRULE without scheduling anything |
+| `manage_cart` | Adds, removes, changes, or reads cart lines |
+| `manage_wishlist` | Adds, removes, or reads wishlist products |
+| `send_enquiry` | Sends a question from the selected customer session |
+| `search_catalog_form` | Declarative search tool generated from the form markup |
+| `get_preview_recipe` | Conditional profile and named look for the open product |
+
+`get_preview_recipe` rebuilds when the product key changes. Its `look` enum must
+match the product currently open, not the previous one.
+
+## Internal tools
+
+The dashboard opens with eight tools. Opening the report adds two. A failed,
+degraded, or unchecked trust result adds two diagnostic tools.
+
+| Tool | Behavior |
+| --- | --- |
+| `list_metrics` | Lists the six registered metrics and their supported dimensions |
+| `get_metric` | Moves the dashboard and reads one period value |
+| `breakdown_metric` | Splits a metric by one supported dimension |
+| `describe_metric` | Returns the definition, grain, exclusions, and lineage metadata |
+| `check_data_trust` | Checks one metric, period, and optional filter |
+| `filter_dashboard` | Moves the metric, period, filters, and view |
+| `start_report` | Opens the report builder |
+| `list_enquiries` | Reads the customer queue or marks an enquiry answered |
+| `draft_report` | Checks every section before writing it to the page |
+| `build_deck` | Returns a slide outline after human approval |
+| `explain_data_issue` | Converts a failed check to plain language |
+| `trace_lineage` | Opens the lineage chain and marks the failed stage |
+
+## Verification notes
+
+`docs/probe-modelcontext.mjs` checks the API shape and the public-to-internal
+swap. `docs/probe-preview.mjs` checks the conditional preview tool.
+`docs/probe-report-flow.mjs` checks the report gate. `docs/eval-tools.mjs`
+runs 20 fixed scenarios through the browser's tool API.
+
+The probes require a running app and launch Chrome themselves:
+
+```bash
+npm run dev
+npm run verify:webmcp
+npm run eval
+```

@@ -18,12 +18,13 @@
 // catalogue and the catalogue is not on the screen once the surface switches.
 // A registered tool that cannot move the page is a tool the agent can pick by
 // mistake, and Chrome's own guidance is that overlapping tools make selection
-// worse. CONTEXT.md says the same thing in one line: signing in swaps one set
+// worse. The CLAUDE.md glossary says the same in one line: signing in swaps one set
 // of registered tools for the other.
 //
 // This is explicitly NOT a security boundary. Registration happens in the
 // browser and anyone with devtools can call setSurface. The real boundary is
-// server side, where the session decides the depth of an answer. See CONTEXT.md
+// server side, where the session decides the depth of an answer. See the
+// CLAUDE.md glossary
 // on "surface" versus "audience".
 //
 // Tools are registered only from the modules imported below. Nothing is ever

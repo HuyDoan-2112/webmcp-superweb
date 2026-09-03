@@ -1,274 +1,218 @@
 # SuperWeb
 
-A WebMCP demonstration built on Kestrel Supply Co., a fictional electronics
-supplier. The application registers its own tools in the page, so an agent
-operates the real product through the same code path a click takes, rather than
-through a parallel API or a hosted MCP server.
+SuperWeb is a fictional trade catalogue and revenue dashboard for Kestrel
+Supply Co. The page registers WebMCP tools that use the same state setters and
+API endpoints as the visible interface. When an agent filters the catalogue or
+drafts a report, the person at the screen sees the same result.
 
-| | |
-|---|---|
-| Live | [webmcp-superweb.vercel.app](https://webmcp-superweb.vercel.app) |
-| Demo video | _to be added_ |
-| Agent brief | [llms.txt](https://webmcp-superweb.vercel.app/llms.txt), the site described for an agent arriving without WebMCP |
-| Licence | MIT, see [LICENSE](LICENSE) |
-| Built for | the [OpenAI WebMCP Challenge](https://openai.com/webmcp-challenge/). First commit Aug 27 2026, no prior work |
+| Resource | Link |
+| --- | --- |
+| Live app | [webmcp-superweb.vercel.app](https://webmcp-superweb.vercel.app/) |
+| Demo video | [Watch on YouTube](https://youtu.be/nIOFaWsP4_Y) |
+| Agent brief | [llms.txt](https://webmcp-superweb.vercel.app/llms.txt) |
+| Challenge | [OpenAI WebMCP Challenge](https://openai.com/webmcp-challenge/) |
+| License | [MIT](LICENSE) |
 
-## Overview
+## What the page does
 
-One origin serves two surfaces, and the registered tool set follows which one is
-open.
+The customer signed-out surface is a catalogue of photographed products. Its tools
+search and filter the catalogue, open and compare products, manage a cart and
+wishlist, file trade enquiries, switch between five languages, and check the
+claims behind four promotions.
 
-**The public storefront** is a trade catalogue of 28 photographed products.
-Its tools search and filter the real catalogue, open and compare products,
-manage a cart and wishlist, file trade enquiries, switch between five locales,
-and read Kestrel's authored profile for a product family. That profile carries
-named looks, styling treatments written in the vocabulary a photo editor uses,
-which a caller can hand to an image model to restyle a photograph the person
-already supplied.
+Opening a product with a Kestrel profile adds "get_preview_recipe". It returns
+the shop's written notes and named photo treatments. It never invents aperture,
+sensor size, wattage, or any other measurement absent from the catalogue.
 
-**The internal dashboard** appears once someone signs in. Its tools answer
-metric questions, break any metric down along any dimension, check whether a
-given slice is trustworthy, draft a multi-section report, and trace a number's
-lineage back to the system it came from. A report cannot be exported until a
-person approves it on the page.
+When staff signed-in replaces the catalogue with a revenue dashboard. Its tools read
+six metrics, split them by supported dimensions, draft a report, and trace
+missing rows to the failed pipeline stage.
 
-Three constraints hold across both:
+## Why this uses WebMCP
 
-- **Nothing is measured that the data does not record.** The catalogue holds
-  price, colour, weight, brand and category. It holds no sensor size, aperture,
-  wattage or decibel figure, so profiles are Kestrel's own words and every
-  response carries a block saying so.
-- **No image data passes through WebMCP.** Tools return structured product data
-  and a labelled recipe. Any image edit happens as a separate step in the
-  agent's own environment. Multimodal input and output remain open work in the
-  spec.
-- **A number without evidence behind it does not reach the page.** The report
-  tools read the pipeline's own quality checks and refuse rather than publish.
+A hosted MCP server can query a warehouse. It cannot know which product is open,
+which controls moved, or whether the report on the page has human approval.
+SuperWeb keeps those facts in the page.
 
-## Where WebMCP fits
+- Imperative tools call the same store setters as buttons and filters.
+- Reads go through the same "/api/*" endpoints as React components.
+- Tool groups register and unregister as the visible surface changes.
+- "build_deck" reads the report currently on the page and refuses until a person
+  presses **Approve for export**.
 
-The [WebMCP explainer](https://github.com/webmachinelearning/webmcp) states five
-goals and four non-goals. This build is organised around them.
+This abridged excerpt shows the important part of "search_products": the tool
+moves the same catalogue state as the visible controls, then reads the resulting
+page through the products API.
 
-| Goal | How SuperWeb meets it |
-|---|---|
-| Human-in-the-loop workflows | The page moves visibly as the agent works, because tools call the same store setters a click calls. `build_deck` refuses until a person presses Approve, and no registered tool can press it |
-| Simplify agent integration | Schemas carry real enums built at registration time from live data, so the agent cannot name a category, metric or promotion that does not exist. No DOM scraping and no simulated clicks |
-| Prevent disintermediation | Tools drive the front end; the front end calls `/api/*`, the same path a click takes. The application is not bypassed by a backend integration, it is the integration |
-| Code reuse | `search_catalog_form` is the catalogue's existing accessible search form plus three HTML attributes. The browser synthesises the schema from the markup, with no JavaScript and no second code path |
-| Accessibility through agents | The agent operates the same labelled controls a screen reader announces, rather than a parallel surface that can drift from them |
+"ts
+// src/mcp/tools/catalog.ts
+name: "search_products",
+inputSchema: {
+  type: "object",
+  properties: {
+    query: { type: "string" },
+    category: enumOrText(facets?.categories, "Limit to one category."),
+    brand: enumOrText(facets?.brands, "Limit to one brand."),
+    limit: { type: "number", minimum: 1, maximum: CATALOG_PAGE_SIZE },
+  },
+  required: [],
+},
+annotations: { readOnlyHint: false, untrustedContentHint: true },
+execute: async (args) => {
+  if (typeof args.query === "string") setCatalogSearch(args.query);
+  if (typeof args.category === "string")
+    setCatalogCategory(args.category === "" ? null : args.category);
+  if (typeof args.brand === "string")
+    setCatalogBrand(args.brand === "" ? null : args.brand);
 
-| Non-goal | How this build honours it |
-|---|---|
-| Headless browsing | State lives in the page. The tool surface exists only while the page is open, and the probes drive real Chrome |
-| Fully autonomous workflows | The approval gate is this line. The agent decides what may be written; the person decides whether it may be sent |
-| Replacing backend integrations | `/api/*` stays an ordinary read-only API. No tool composes SQL or touches DuckDB |
-| Replacing the human interface | Every tool moves a control a person could have moved. There is one state path, not a hidden copy of the application |
+  const state = getState();
+  const found = await readProducts(pageQuery(state));
+  // The full handler reports the same count and products now shown on the page.
+},
+"
 
-## WebMCP tools reference
+For example, an agent can call it with "{"query":"camera","limit":3}". The
+catalogue search box and grid move before the tool reports those results.
 
-Registration follows page state, never identity. The surface stays small while
-the answerable space stays large: `breakdown_metric` alone answers roughly forty
-questions, six metrics against eight dimensions, from one registration.
+The catalogue search also demonstrates declarative WebMCP. Chrome turns the
+existing form into "search_catalog_form" from its HTML attributes:
 
-**Public surface**, signed out. Eleven written in TypeScript, one registered by
-the browser from HTML, and one that appears only on a profiled product.
+"tsx
+<form
+  toolname="search_catalog_form"
+  tooldescription="Search the Kestrel Supply Co. trade catalogue by keyword and narrow it to one category."
+  toolautosubmit=""
+  onSubmit={onSubmit}
+>
+  <input name="q" required toolparamdescription="Free text matched against product name, product code and brand." />
+  <select name="category" toolparamdescription="Limit to one category." />
+</form>
+"
 
-| Tool | Registered | Does |
-|---|---|---|
-| `search_products` | catalogue | Free text and facet search |
-| `get_product` | catalogue | One product family by code or name |
-| `compare_products` | catalogue | Two or more families side by side |
-| `filter_catalog` | catalogue | Moves the grid's filters and paging |
-| `set_language` | catalogue | Switches the storefront locale, five available |
-| `list_promotions` | catalogue | Live offers for a given date |
-| `check_promotion` | catalogue | Whether a promotion's claim survives its trust check |
-| `plan_promotion_reminder` | catalogue | Hands a scheduler the shape of a reminder |
-| `manage_cart` | catalogue | Add, remove, read the basket |
-| `manage_wishlist` | catalogue | Add, remove, read the wishlist |
-| `send_enquiry` | catalogue | Files a trade enquiry against a product |
-| `search_catalog_form` | catalogue | **Declarative**, synthesised from the search form's markup |
-| `get_preview_recipe` | a profiled product is open | Kestrel's notes on that product family, and its named looks |
+The browser fills the real controls and runs the form's submit handler. The
+handler returns a count, then points the agent to "search_products" for supplier
+copy because declarative tools cannot declare "untrustedContentHint".
 
-Profiles exist for 18 subcategories. A Digital SLR carries sixteen looks, four
-written for that kind of camera and twelve house looks shared across the shop.
-Most of the catalogue has no profile, so the tool is genuinely absent on a
-kettle.
+## Run it locally
 
-**Internal surface**, signed in. The public eleven unregister and these take
-their place, so the count dips before it climbs.
+Requirements:
 
-| Tool | Registered | Does |
-|---|---|---|
-| `list_metrics` | dashboard | What is answerable at all |
-| `get_metric` | dashboard | One metric for a period, optionally as a chart |
-| `breakdown_metric` | dashboard | Any metric along any dimension |
-| `describe_metric` | dashboard | What a metric means and how it is computed |
-| `check_data_trust` | dashboard | The verdict for one metric, period and slice |
-| `filter_dashboard` | dashboard | Moves the dashboard's own controls |
-| `start_report` | dashboard | Opens the report builder |
-| `list_enquiries` | dashboard | Trade enquiries filed from the catalogue |
-| `draft_report` | the report is open | Drafts every section, refusing what cannot be published |
-| `build_deck` | the report is open | Lays the approved draft out as slides |
-| `explain_data_issue` | a check came back not-ok | One sentence a non-technical person can use |
-| `trace_lineage` | a check came back not-ok | Walks the chain from the number back to the source system |
+- Node.js from [.nvmrc](.nvmrc)
+- A browser with "document.modelContext", such as ChatGPT's in-app browser or
+  Chrome with WebMCP enabled
 
-## How WebMCP is implemented
-
-Tools live in `src/mcp/tools/` and register from `src/mcp/register.ts`. The
-recipe for adding one, and the reasons not to, are in
-[src/mcp/README.md](src/mcp/README.md).
-
-**A form with three attributes is a tool.** The catalogue search box carries
-`toolname`, `tooldescription` and `toolautosubmit`, with `toolparamdescription`
-on its fields, and Chrome registers it as `search_catalog_form` with no
-JavaScript. The browser synthesises the schema from the markup, so `<select>`
-options become an enum and `required` becomes the required array. Calling it
-fills the real input, runs the page's own submit handler, and answers through
-`SubmitEvent.respondWith`. The browser enforces code reuse here rather than a
-developer remembering to. The limit is annotations, which cannot be expressed
-declaratively, so this tool answers with a count and hands off to
-`search_products` for the rows, since product copy is third-party text.
-
-**Tools drive the page, they do not compose SQL.** A tool that moves the page
-calls the same store setter a click calls. A tool answering a question reads the
-same `/api/*` endpoint the page reads. Neither half touches DuckDB.
-
-**Sequencing happens through return values, and decisions come back as data
-too.** A tool's response is context the agent reads, so that is where the next
-step gets steered. `check_data_trust` and `draft_report` append a JSON block
-carrying the same answer as fields, because WebMCP validates tool input and says
-nothing about output. A blocked section omits the figure key entirely rather
-than sending null or zero, since the dashboard renders `$0` for a blocked slice
-and "we counted zero" must not serialise like "nothing was counted". Every
-answer carries `dataAsOf` and `answeredAt`.
-
-**`readOnlyHint` is claimed sparingly.** MCP defines it as "does not modify its
-environment", and the page is the environment, so only tools that move nothing
-carry it. Tools register only from our own modules, never from fetched content,
-because runtime registration has a published attack surface.
-
-**What the probes found**, rather than what the explainer states. Unregistering
-means aborting the `AbortSignal` passed to `registerTool`; there is no
-`unregisterTool`. `getTools()` returns `inputSchema` as a string, and
-`executeTool` is a string on both sides, so a caller reading `result.content`
-gets undefined and an empty answer with no error. `navigator.modelContext` is
-the same object, not a dead spelling. A declarative tool's lifetime is its
-element's: signing in unmounts the search form and the browser drops
-`search_catalog_form` on its own, with no code of ours.
-
-## Data and the trust layer
-
-`etl/` runs DuckDB over the Contoso dataset, bronze to silver to gold, and
-writes the quality checks and run metadata that everything downstream reads.
-`api/` serves the resulting parquet read-only. `/api/query` is the only endpoint
-that aggregates, and it composes every column from `shared/metrics.ts`: filter
-values bind as parameters, and metric and dimension names are looked up in the
-registry and rejected if absent, so the only strings reaching SQL text are ones
-this repository wrote. `/api/trust` reads the checks the ETL recorded rather
-than recomputing them, because the rows that would prove a completeness failure
-are the ones that are missing.
-
-The demonstration period, November 2023, is missing a month of euro exchange
-rates, so order lines that needed one fell out of the pipeline: 7,831 of 31,084.
-France, Germany, Italy and the Netherlands lose every line, so those slices
-carry no publishable figure. The Online channel keeps 14,043 of its 18,831 lines
-and produces a figure that looks ordinary and is roughly a quarter short.
-
-That gap is injected on purpose by two lines in `etl/sql/01_bronze.sql`, because
-Contoso ships complete coverage and there is no natural gap to point a tool at.
-Everything downstream is real: the join fails, `checks.py` records it, and
-`npm run etl` reproduces every count.
-[docs/adr/0003](docs/adr/0003-the-fx-gap-is-planted.md) names the line.
-
-The session decides how deep an answer goes, never whether a question may be
-asked. `check_data_trust` on the same slice answers an operations audience with
-plain language and a data platform audience with the check name and the row
-counts. Registration happens in the browser and is not a security boundary,
-which is why the server decides depth: see `api/_lib/session.ts`.
-
-## Getting started
-
-```bash
+"bash
 npm install
-npm run dev          # the whole application on :5173
-```
+npm run dev
+"
 
-No second terminal and no Vercel login. In production `api/` runs as Vercel
-serverless functions; locally `vite-api-plugin.ts` loads the same handler
-modules through Vite. The committed gold parquet runs everything; to regenerate
-it see [etl/README.md](etl/README.md).
+Vite serves the React app and loads "api/*.ts" through
+"vite-api-plugin.ts", so one process runs the local application at
+"http://localhost:5173".
 
-WebMCP needs a browser exposing `document.modelContext`: Chrome with
-`--enable-features=WebMCP`, or ChatGPT's in-app browser. The deployed origin
-carries an origin trial token, so no flag is needed there. Clear site data
-first, since a leftover session cookie opens the application on the dashboard
-and skips the surface swap.
+Clear the site's session cookie before rehearsing the surface swap. A saved
+staff session opens directly on the dashboard.
 
-## Testing
+## Demo prompts
 
-Each script spawns its own Chrome, so `npm run dev` is the only thing you start.
+Start at the product catalogue and ask:
 
-```bash
-npm run verify                     # typecheck and build
-node docs/probe-modelcontext.mjs   # the browser API surface
-node docs/probe-report-flow.mjs    # the report flow, driven as an agent
-node docs/probe-preview.mjs        # the preview recipe appearing and going away
-npm run eval                       # 20 deterministic scenarios, pass or fail
-```
+> I need a camera under $300 before delivery for outdoor Grade 12 photos. Use
+> the tools on this Kestrel page to find no more than three options. Compare
+> only facts the page provides. When I choose one, get its Kestrel preview
+> recipe and check whether the current promotion claims hold up.
 
-`npm run eval` is the deterministic half of Chrome's suggested WebMCP
-evaluation: every scenario calls a tool with fixed arguments and asserts on what
-came back, so it measures what the tools do. Whether a model picks the right
-tool or recovers from an ambiguous prompt is not measured anywhere in this repo
-and is not claimed. It asserts exact figures and needs the committed gold
-parquet; pass `--url=` to run it against the deployment.
+Choose a camera, then ask for one of its named looks. The tool returns a text
+recipe. No image crosses WebMCP. Any image edit happens in the caller's own
+image model and must be described as an illustrative treatment, not a hardware
+test.
 
-## Project structure
+Sign in as Maya and ask:
 
-| Path | Contains |
-|---|---|
-| `src/mcp/` | Registration, the panel, every WebMCP tool. [Recipe here](src/mcp/README.md) |
-| `src/mcp/profiles.ts` | The authored profiles and looks, 18 subcategories |
-| `src/ui/`, `src/components/` | Storefront, dashboard, report, lineage ladder |
-| `src/store.ts` | The one state path a click and a tool both take |
-| `shared/` | Types and the metric registry, read by both sides |
-| `api/` | Read-only serverless endpoints, one file each |
-| `etl/` | Python and DuckDB, bronze to silver to gold |
-| `data/` | Committed gold parquet, pipeline metadata, the photographed range |
-| `docs/` | Probes, the scenario suite, decision records |
+> Draft the November 2023 net revenue report by country. Publish only figures
+> the pipeline supports, and explain anything you refuse.
 
-The storefront is the 28 photographed products in
-`data/meta/catalog-products.json`, so no card shows a picture of something else.
-The warehouse behind it keeps the full Contoso dimension, 2,517 rows in 885
-families, which is what the dashboard aggregates.
+Four countries receive figures. France, Germany, Italy, and the Netherlands do
+not. The report appears on the page as an unapproved agent draft. Ask for a deck
+before approval and "build_deck" refuses. Press **Approve for export** and call
+it again to receive the slide outline.
 
-| Layer | Choice |
-|---|---|
-| Frontend | Vite, React 19, Tailwind, shadcn/ui, framework-agnostic store |
-| Backend | Vercel serverless functions, DuckDB, read-only |
-| Data | Contoso Data Generator V2, 1M-order tier, MIT |
-| Auth | Demo session. Identity, not security. No passwords |
+Switch to Tom'dashboard and ask:
 
-[SUBMISSION.md](SUBMISSION.md) is the guided walkthrough with every number
-traced to its file. [CONTEXT.md](CONTEXT.md) is the glossary,
-[CLAUDE.md](CLAUDE.md) the working context,
-[docs/open-questions.md](docs/open-questions.md) what this build measured
-against the open spec questions.
+> Trace the lineage behind Germany's missing revenue.
 
-## Licence
+The answer now includes the check name, row counts, and the failed silver stage.
+The audience changes the depth of the answer, not whether the question may be
+asked.
 
-MIT, see [LICENSE](LICENSE). Every dependency is permissively licensed: Contoso
-data MIT, DuckDB MIT, Recharts MIT, shadcn/ui MIT.
+## Architecture
 
-The dashboard shell, layout, theme tokens and the shadcn/ui component set, is
-adapted from [satnaing/shadcn-admin](https://github.com/satnaing/shadcn-admin),
-MIT, Copyright (c) 2024 Sat Naing. Its licence is retained verbatim at
-[vendor/shadcn-admin/LICENSE](vendor/shadcn-admin/LICENSE).
+"text
+Contoso parquet source
+        |
+        v
+etl/  -> data/gold/*.parquet + data/meta/*.json
+        |
+        v
+api/  -> read-only query, trust, lineage, product, and run endpoints
+        |
+        v
+React store <-> visible UI
+        ^
+        |
+src/mcp/ WebMCP tools
+"
 
-The sample data is Microsoft's Contoso dataset, published to be used this way.
-Contoso exists precisely to be the fictional company in demos. It is renamed to
-Kestrel Supply Co. for product reasons rather than legal ones: a UI saying
-"Contoso" reads as a tutorial built on sample data, one saying Kestrel reads as
-a product seeded with it. No Microsoft logo appears and no involvement is
-implied. The business it describes is not real.
+"shared/metrics.ts" defines metrics and dimensions once. The API uses it to
+compose SQL, and the tool layer uses it to build schema enums.
+
+## Verification
+
+"bash
+npm run verify
+npm run dev
+npm run verify:webmcp
+npm run eval
+"
+
+"npm run verify" type-checks and builds the app. The three WebMCP probes launch
+Chrome and inspect registration, the report flow, and the conditional preview
+tool. "npm run eval" runs 20 fixed tool scenarios through
+"document.modelContext".
+
+The evaluation covers tool behavior with fixed arguments. It does not measure
+whether a model chooses the right tool or recovers from an ambiguous prompt.
+
+The product tool counts documented in [src/mcp/README.md](src/mcp/README.md)
+exclude the temporary "webmcp_probe" in "src/mcp/register.ts". Remove that probe
+before the final deployment.
+
+## Known limits
+
+- The "build_deck" tool returns a slide outline, not a ".pptx" file.
+- The staff switcher is a demo session, not an authentication system.
+- The pipeline records scoped quality checks for "net_revenue", country, and
+  channel. Other slices can return "unchecked".
+- WebMCP tool results are text in the tested Chrome build. The page returns a
+  photo recipe, not image bytes.
+
+## Documentation
+
+| File | Purpose |
+| --- | --- |
+| [SUBMISSION.md](SUBMISSION.md) | Copy-ready Devpost story and verified project facts |
+| [src/mcp/README.md](src/mcp/README.md) | Tool inventory, registration rules, and the recipe for adding a tool |
+| [etl/README.md](etl/README.md) | Source data, transformations, planted FX gap, and rebuild steps |
+| [docs/open-questions.md](docs/open-questions.md) | Behavior measured against the current WebMCP implementation |
+| [docs/adr/](docs/adr/) | Decisions that are surprising in the code and costly to reverse |
+| [CLAUDE.md](CLAUDE.md) | Working rules and project glossary for coding agents |
+
+## License and data
+
+SuperWeb is MIT licensed. The dashboard shell and UI components adapt
+[satnaing/shadcn-admin](https://github.com/satnaing/shadcn-admin); its MIT
+license remains at [vendor/shadcn-admin/LICENSE](vendor/shadcn-admin/LICENSE).
+
+The sample business data comes from Microsoft's MIT-licensed Contoso Data
+Generator V2 and is presented as the fictional Kestrel Supply Co. No Microsoft
+involvement is implied.
