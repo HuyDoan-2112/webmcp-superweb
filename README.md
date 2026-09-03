@@ -147,21 +147,11 @@ asked.
 
 ## Architecture
 
-```text
-Contoso parquet source
-        |
-        v
-etl/  -> data/gold/*.parquet + data/meta/*.json
-        |
-        v
-api/  -> read-only query, trust, lineage, product, and run endpoints
-        |
-        v
-React store <-> visible UI
-        ^
-        |
-src/mcp/ WebMCP tools
-```
+![SuperWeb architecture showing human and agent actions converging on the same React store and read-only data APIs](docs/assets/superweb-architecture.png)
+
+The ETL pipeline turns the Contoso source parquet into the gold datasets and
+trust metadata read by `/api/*`. The React interface and WebMCP tools use the
+same state setters, so an agent action is visible to the person on the page.
 
 `shared/metrics.ts` defines metrics and dimensions once. The API uses it to
 compose SQL, and the tool layer uses it to build schema enums.
