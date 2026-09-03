@@ -8,7 +8,8 @@ drafts a report, the person at the screen sees the same result.
 | Resource | Link |
 | --- | --- |
 | Live app | [webmcp-superweb.vercel.app](https://webmcp-superweb.vercel.app/) |
-| Demo video | [Watch on YouTube](https://youtu.be/nIOFaWsP4_Y) |
+| Demo video | [Watch on Google Drive](https://drive.google.com/drive/folders/1R3K-tyClBycVF9MaB8f4t0El4-RpwHCG?usp=drive_link) |
+| Presentation | [Watch on YouTube](https://youtu.be/nIOFaWsP4_Y) |
 | Agent brief | [llms.txt](https://webmcp-superweb.vercel.app/llms.txt) |
 | Challenge | [OpenAI WebMCP Challenge](https://openai.com/webmcp-challenge/) |
 | License | [MIT](LICENSE) |

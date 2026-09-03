@@ -9,7 +9,8 @@ screen.
 | --- | --- |
 | Live app | [webmcp-superweb.vercel.app](https://webmcp-superweb.vercel.app/) |
 | Source | [github.com/HuyDoan-2112/webmcp-superweb](https://github.com/HuyDoan-2112/webmcp-superweb) |
-| Demo video | [youtu.be/nIOFaWsP4_Y](https://youtu.be/nIOFaWsP4_Y) |
+| Demo video | [Google Drive folder](https://drive.google.com/drive/folders/1R3K-tyClBycVF9MaB8f4t0El4-RpwHCG?usp=drive_link) |
+| Presentation | [YouTube](https://youtu.be/nIOFaWsP4_Y) |
 | License | [MIT](LICENSE) |
 
 This file is the source text for the Devpost project story. Devpost does not
