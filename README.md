@@ -20,7 +20,7 @@ search and filter the catalogue, open and compare products, manage a cart and
 wishlist, file trade enquiries, switch between five languages, and check the
 claims behind four promotions.
 
-Opening a product with a Kestrel profile adds "get_preview_recipe". It returns
+Opening a product with a Kestrel profile adds `get_preview_recipe`. It returns
 the shop's written notes and named photo treatments. It never invents aperture,
 sensor size, wattage, or any other measurement absent from the catalogue.
 
@@ -35,16 +35,16 @@ which controls moved, or whether the report on the page has human approval.
 SuperWeb keeps those facts in the page.
 
 - Imperative tools call the same store setters as buttons and filters.
-- Reads go through the same "/api/*" endpoints as React components.
+- Reads go through the same `/api/*` endpoints as React components.
 - Tool groups register and unregister as the visible surface changes.
-- "build_deck" reads the report currently on the page and refuses until a person
+- `build_deck` reads the report currently on the page and refuses until a person
   presses **Approve for export**.
 
-This abridged excerpt shows the important part of "search_products": the tool
+This abridged excerpt shows the important part of `search_products`: the tool
 moves the same catalogue state as the visible controls, then reads the resulting
 page through the products API.
 
-"ts
+```ts
 // src/mcp/tools/catalog.ts
 name: "search_products",
 inputSchema: {
@@ -69,15 +69,15 @@ execute: async (args) => {
   const found = await readProducts(pageQuery(state));
   // The full handler reports the same count and products now shown on the page.
 },
-"
+```
 
-For example, an agent can call it with "{"query":"camera","limit":3}". The
+For example, an agent can call it with `{"query":"camera","limit":3}`. The
 catalogue search box and grid move before the tool reports those results.
 
 The catalogue search also demonstrates declarative WebMCP. Chrome turns the
-existing form into "search_catalog_form" from its HTML attributes:
+existing form into `search_catalog_form` from its HTML attributes:
 
-"tsx
+```tsx
 <form
   toolname="search_catalog_form"
   tooldescription="Search the Kestrel Supply Co. trade catalogue by keyword and narrow it to one category."
@@ -87,28 +87,28 @@ existing form into "search_catalog_form" from its HTML attributes:
   <input name="q" required toolparamdescription="Free text matched against product name, product code and brand." />
   <select name="category" toolparamdescription="Limit to one category." />
 </form>
-"
+```
 
 The browser fills the real controls and runs the form's submit handler. The
-handler returns a count, then points the agent to "search_products" for supplier
-copy because declarative tools cannot declare "untrustedContentHint".
+handler returns a count, then points the agent to `search_products` for supplier
+copy because declarative tools cannot declare `untrustedContentHint`.
 
 ## Run it locally
 
 Requirements:
 
 - Node.js from [.nvmrc](.nvmrc)
-- A browser with "document.modelContext", such as ChatGPT's in-app browser or
+- A browser with `document.modelContext`, such as ChatGPT's in-app browser or
   Chrome with WebMCP enabled
 
-"bash
+```bash
 npm install
 npm run dev
-"
+```
 
-Vite serves the React app and loads "api/*.ts" through
-"vite-api-plugin.ts", so one process runs the local application at
-"http://localhost:5173".
+Vite serves the React app and loads `api/*.ts` through
+`vite-api-plugin.ts`, so one process runs the local application at
+`http://localhost:5173`.
 
 Clear the site's session cookie before rehearsing the surface swap. A saved
 staff session opens directly on the dashboard.
@@ -134,7 +134,7 @@ Sign in as Maya and ask:
 
 Four countries receive figures. France, Germany, Italy, and the Netherlands do
 not. The report appears on the page as an unapproved agent draft. Ask for a deck
-before approval and "build_deck" refuses. Press **Approve for export** and call
+before approval and `build_deck` refuses. Press **Approve for export** and call
 it again to receive the slide outline.
 
 Switch to Tom'dashboard and ask:
@@ -147,7 +147,7 @@ asked.
 
 ## Architecture
 
-"text
+```text
 Contoso parquet source
         |
         v
@@ -161,38 +161,38 @@ React store <-> visible UI
         ^
         |
 src/mcp/ WebMCP tools
-"
+```
 
-"shared/metrics.ts" defines metrics and dimensions once. The API uses it to
+`shared/metrics.ts` defines metrics and dimensions once. The API uses it to
 compose SQL, and the tool layer uses it to build schema enums.
 
 ## Verification
 
-"bash
+```bash
 npm run verify
 npm run dev
 npm run verify:webmcp
 npm run eval
-"
+```
 
-"npm run verify" type-checks and builds the app. The three WebMCP probes launch
+`npm run verify` type-checks and builds the app. The three WebMCP probes launch
 Chrome and inspect registration, the report flow, and the conditional preview
-tool. "npm run eval" runs 20 fixed tool scenarios through
-"document.modelContext".
+tool. `npm run eval` runs 20 fixed tool scenarios through
+`document.modelContext`.
 
 The evaluation covers tool behavior with fixed arguments. It does not measure
 whether a model chooses the right tool or recovers from an ambiguous prompt.
 
 The product tool counts documented in [src/mcp/README.md](src/mcp/README.md)
-exclude the temporary "webmcp_probe" in "src/mcp/register.ts". Remove that probe
+exclude the temporary `webmcp_probe` in `src/mcp/register.ts`. Remove that probe
 before the final deployment.
 
 ## Known limits
 
-- The "build_deck" tool returns a slide outline, not a ".pptx" file.
+- The `build_deck` tool returns a slide outline, not a `.pptx` file.
 - The staff switcher is a demo session, not an authentication system.
-- The pipeline records scoped quality checks for "net_revenue", country, and
-  channel. Other slices can return "unchecked".
+- The pipeline records scoped quality checks for `net_revenue`, country, and
+  channel. Other slices can return `unchecked`.
 - WebMCP tool results are text in the tested Chrome build. The page returns a
   photo recipe, not image bytes.
 
